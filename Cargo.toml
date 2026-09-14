@@ -1,0 +1,18 @@
+[package]
+name = "qubit-infra-verify"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+license = "Apache-2.0"
+description = "Rust project build, test, lockfile, and package verification"
+repository = "https://github.com/qubit-ltd/rs-infra-verify"
+homepage = "https://qubit-ltd.github.io/rs-infra-verify/"
+readme = "README.md"
+
+[[bin]]
+name = "rs-infra-verify"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
