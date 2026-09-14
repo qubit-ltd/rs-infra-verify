@@ -58,7 +58,7 @@ mod suite {
                 Self::FeatureMatrix => &["check", "--workspace", "--all-features"],
                 Self::Cross => &["cross", "test", "--workspace", "--all-features"],
                 Self::Platform => &["test", "--workspace", "--all-features"],
-                Self::Miri => &["miri", "test", "--workspace", "--all-features"],
+                Self::Miri => &["+nightly", "miri", "test", "--workspace", "--all-features"],
                 Self::AddressSanitizer => &[
                     "test",
                     "-Zbuild-std",
