@@ -127,6 +127,10 @@ fn main() -> Result<()> {
 /// Converts a command-line suite name into the library suite type.
 impl From<SuiteArg> for Suite {
     /// Converts a command-line suite into its library representation.
+    ///
+    /// # Returns
+    ///
+    /// The library suite corresponding to the command-line value.
     fn from(suite: SuiteArg) -> Self {
         match suite {
             SuiteArg::All => unreachable!("all is handled before conversion"),

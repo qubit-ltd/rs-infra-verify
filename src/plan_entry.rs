@@ -27,7 +27,7 @@ use crate::plan_status::PlanStatus;
 pub struct PlanEntry {
     /// The suite being planned.
     pub suite: Suite,
-    /// The command and arguments associated with the suite.
+    /// Owned command and arguments associated with the suite.
     pub command: Vec<String>,
     /// Whether the suite is ready or was skipped.
     pub status: PlanStatus,
@@ -35,6 +35,11 @@ pub struct PlanEntry {
 
 impl PlanEntry {
     /// Returns a human-readable status message for this entry.
+    ///
+    /// # Returns
+    ///
+    /// A newly allocated message that names the suite and describes whether
+    /// it is enabled or why it was skipped.
     #[must_use]
     pub fn message(&self) -> String {
         match &self.status {
