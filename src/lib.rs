@@ -152,11 +152,19 @@ fn is_configured(project: &Path, suite: Suite) -> Result<bool> {
         | Suite::Package
         | Suite::Clippy
         | Suite::Audit => true,
-        Suite::FeatureMatrix => project.join(".rs-ci-cargo-matrix.json").is_file(),
-        Suite::Cross => {
-            project.join("Cross.toml").is_file() || project.join(".rs-ci-cross.toml").is_file()
+        Suite::FeatureMatrix => {
+            project.join(".infra/ci/cargo-matrix.json").is_file()
+                || project.join(".rs-ci-cargo-matrix.json").is_file()
         }
-        Suite::Platform => project.join(".rs-ci-platform.toml").is_file(),
+        Suite::Cross => {
+            project.join(".infra/ci/cross.toml").is_file()
+                || project.join("Cross.toml").is_file()
+                || project.join(".rs-ci-cross.toml").is_file()
+        }
+        Suite::Platform => {
+            project.join(".infra/ci/platform.toml").is_file()
+                || project.join(".rs-ci-platform.toml").is_file()
+        }
         Suite::Miri => has_metadata_flag(&manifest_text, "miri", "true"),
         Suite::AddressSanitizer => {
             manifest_text.contains("sanitizers") && manifest_text.contains("address")
