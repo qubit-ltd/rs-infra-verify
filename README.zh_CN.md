@@ -25,9 +25,13 @@ cargo run --manifest-path /path/to/rs-infra-verify/Cargo.toml -- --help
 
 项目的 `.infra` 配置仍然是行为的唯一来源；工具仓库不会复制项目配置。具体策略由项目配置决定。
 
-## 能力与限制
+## 校验 suite
 
-当前版本只提供上文列出的专门能力，刻意保持为小型基础设施组件：项目策略放在 `.infra`，任务编排交给 `rs-infra-ci`。对于旧版 `rs-ci` 脚本，只有测试覆盖的命令可视为兼容。
+使用 `run --suite <name>` 运行单个 suite，或使用 `run --suite all` 运行全部 suite。可用 suite 包括 lock、build、test、doc、package、clippy、feature-matrix、cross、platform、miri、address-sanitizer、loom、fuzz 和 audit。
+
+可选 suite 沿用旧 rs-ci 的项目配置入口：`.rs-ci-cargo-matrix.json` 启用 feature matrix，`Cross.toml` 或 `.rs-ci-cross.toml` 启用 cross，`.rs-ci-platform.toml` 启用 platform；Cargo package metadata 启用 miri、AddressSanitizer 和 loom；`fuzz/Cargo.toml` 必须包含 `cargo-fuzz = true` 标记才会启用 fuzz。
+
+未配置的可选 suite 会明确输出 `skipped: not configured`。一旦配置，缺少工具或命令失败都会报错，不会静默跳过。
 
 ## 延伸阅读
 

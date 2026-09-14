@@ -32,10 +32,21 @@ enum LockCommand {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum SuiteArg {
+    All,
+    Lock,
     Build,
     Test,
     Doc,
     Package,
+    Clippy,
+    FeatureMatrix,
+    Cross,
+    Platform,
+    Miri,
+    AddressSanitizer,
+    Loom,
+    Fuzz,
+    Audit,
 }
 
 fn main() -> Result<()> {
@@ -48,14 +59,37 @@ fn main() -> Result<()> {
         Command::Lock {
             command: LockCommand::Sync,
         } => qubit_infra_verify::lock_sync(&project),
-        Command::Run { suite } => qubit_infra_verify::run_suite(
-            &project,
-            match suite {
-                SuiteArg::Build => qubit_infra_verify::Suite::Build,
-                SuiteArg::Test => qubit_infra_verify::Suite::Test,
-                SuiteArg::Doc => qubit_infra_verify::Suite::Doc,
-                SuiteArg::Package => qubit_infra_verify::Suite::Package,
-            },
-        ),
+        Command::Run { suite } => {
+            if matches!(suite, SuiteArg::All) {
+                for suite in qubit_infra_verify::Suite::all() {
+                    qubit_infra_verify::run_suite(&project, *suite)?;
+                }
+                Ok(())
+            } else {
+                qubit_infra_verify::run_suite(&project, suite.into())
+            }
+        }
+    }
+}
+
+impl From<SuiteArg> for qubit_infra_verify::Suite {
+    fn from(suite: SuiteArg) -> Self {
+        match suite {
+            SuiteArg::All => unreachable!("all is handled before conversion"),
+            SuiteArg::Lock => Self::Lock,
+            SuiteArg::Build => Self::Build,
+            SuiteArg::Test => Self::Test,
+            SuiteArg::Doc => Self::Doc,
+            SuiteArg::Package => Self::Package,
+            SuiteArg::Clippy => Self::Clippy,
+            SuiteArg::FeatureMatrix => Self::FeatureMatrix,
+            SuiteArg::Cross => Self::Cross,
+            SuiteArg::Platform => Self::Platform,
+            SuiteArg::Miri => Self::Miri,
+            SuiteArg::AddressSanitizer => Self::AddressSanitizer,
+            SuiteArg::Loom => Self::Loom,
+            SuiteArg::Fuzz => Self::Fuzz,
+            SuiteArg::Audit => Self::Audit,
+        }
     }
 }

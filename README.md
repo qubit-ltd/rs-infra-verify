@@ -25,9 +25,13 @@ cargo run --manifest-path /path/to/rs-infra-verify/Cargo.toml -- --help
 
 The project's `.infra` configuration remains the source of truth; this tool does not copy project configuration into the tool repository.
 
-## Capabilities and limitations
+## Verification suites
 
-This first release provides the focused behavior described above. It is intentionally a small building block: project-specific policy belongs in `.infra`, and orchestration belongs in `rs-infra-ci`. It does not promise compatibility with the legacy `rs-ci` scripts beyond the commands currently covered by tests.
+Run one suite with `run --suite <name>`, or use `run --suite all` to execute every suite. Available suites are lock, build, test, doc, package, clippy, feature-matrix, cross, platform, miri, address-sanitizer, loom, fuzz, and audit.
+
+Optional suites use the legacy rs-ci project inputs: `.rs-ci-cargo-matrix.json` enables feature-matrix; `Cross.toml` or `.rs-ci-cross.toml` enables cross; `.rs-ci-platform.toml` enables platform; package metadata enables miri, AddressSanitizer, and loom; and `fuzz/Cargo.toml` must contain `cargo-fuzz = true` to enable fuzz.
+
+An unconfigured optional suite prints an explicit `skipped: not configured` message. Once configured, missing executables or failed commands are errors; configuration is never silently ignored.
 
 ## Learn More
 
