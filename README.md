@@ -49,11 +49,53 @@ rs-infra-verify --project /path/to/project run --suite package
 rs-infra-verify --project /path/to/project run --suite readme
 ```
 
-Optional suites use the legacy rs-ci project inputs: `.rs-ci-cargo-matrix.json` enables feature-matrix; `Cross.toml` or `.rs-ci-cross.toml` enables cross; `.rs-ci-platform.toml` enables platform; package metadata enables miri, AddressSanitizer, and loom; and `fuzz/Cargo.toml` must contain `cargo-fuzz = true` to enable fuzz.
+Optional suites use the legacy rs-ci project inputs: `.rs-ci-cargo-matrix.json` enables feature-matrix; `Cross.toml` or `.rs-ci-cross.toml` enables cross; `.rs-ci-platform.toml` enables platform; package metadata enables miri and AddressSanitizer; a direct Loom dependency enables loom; and `fuzz/Cargo.toml` must contain `cargo-fuzz = true` to enable fuzz.
 
 An unconfigured optional suite prints an explicit `skipped: not configured` message. Once configured, missing executables or failed commands are errors; configuration is never silently ignored.
 
 An opted-in package can set `miri-test-args` in `[package.metadata.rs-infra]` to pass Cargo test-target or name filters to Miri. This keeps expensive checks focused on selected safety-sensitive tests.
+
+### Nightly, sanitizer, fuzz, and Loom checks
+
+`RS_INFRA_NIGHTLY_TOOLCHAIN` selects the toolchain for Miri, AddressSanitizer,
+and fuzz (default: `nightly`). Set it to `nightly-2026-06-05` to reproduce the
+legacy pinned toolchain. Install that toolchain and its `miri`/`rust-src`
+components, and install the required cargo-fuzz version in your workflow.
+
+AddressSanitizer selects only workspace packages declaring
+`sanitizers = ["address"]` in `[package.metadata.rs-infra]` or the legacy
+`[package.metadata.rs-ci]` namespace; modern metadata takes precedence.
+Empty lists opt out; malformed, duplicate, or unsupported entries fail.
+Each selected package runs with `-Zbuild-std`, all features, and its native target:
+Linux x86_64, macOS x86_64, or macOS aarch64. Unsupported hosts explicitly skip.
+The tool appends `-Zsanitizer=address` to both `RUSTFLAGS` and `RUSTDOCFLAGS`,
+retaining existing flags, and propagates package failures.
+
+Fuzz discovers targets with `cargo +<toolchain> fuzz list`, then builds and
+runs each target with `cargo +<toolchain> fuzz run`. Configure positive integer
+limits with `RS_INFRA_FUZZ_SECONDS_PER_TARGET` (default `10`) and
+`RS_INFRA_FUZZ_MAX_LEN` (default `4096`). For projects previously using larger
+inputs, set `RS_INFRA_FUZZ_MAX_LEN=16384`. Each run receives libFuzzer's
+`-max_total_time`, `-max_len`, and a separate `-artifact_prefix` pointing to
+`fuzz/artifacts/<target>/`. Crash files are retained on failure; the workflow
+must upload that directory. Cargo-fuzz may also update its corpus and build
+output. Empty target lists, discovery errors, invalid limits, and target failures
+are errors, rather than successful discovery-only checks.
+
+Loom selects workspace members whose Cargo metadata declares a direct `loom`
+dependency (including dev, optional, or renamed dependencies). It sets
+`RUSTFLAGS=--cfg loom`, lists tests with `--release --all-features loom -- --list`,
+and fails if any selected package has zero models. It then executes each
+package's matching tests in release mode with all features. A workspace without
+Loom dependencies explicitly skips; comments or transitive dependencies do not
+opt in a package. Cargo's configured project toolchain is used for Loom.
+
+```bash
+RS_INFRA_NIGHTLY_TOOLCHAIN=nightly-2026-06-05 rs-infra-verify run --suite miri
+RS_INFRA_NIGHTLY_TOOLCHAIN=nightly-2026-06-05 rs-infra-verify run --suite address-sanitizer
+RS_INFRA_NIGHTLY_TOOLCHAIN=nightly-2026-06-05 RS_INFRA_FUZZ_MAX_LEN=16384 rs-infra-verify run --suite fuzz
+rs-infra-verify run --suite loom
+```
 
 ## Learn More
 

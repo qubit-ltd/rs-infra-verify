@@ -47,11 +47,51 @@ rs-infra-verify --project /path/to/project run --suite package
 rs-infra-verify --project /path/to/project run --suite readme
 ```
 
-可选 suite 沿用旧 rs-ci 的项目配置入口：`.rs-ci-cargo-matrix.json` 启用 feature matrix，`Cross.toml` 或 `.rs-ci-cross.toml` 启用 cross，`.rs-ci-platform.toml` 启用 platform；Cargo package metadata 启用 miri、AddressSanitizer 和 loom；`fuzz/Cargo.toml` 必须包含 `cargo-fuzz = true` 标记才会启用 fuzz。
+可选 suite 沿用旧 rs-ci 的项目配置入口：`.rs-ci-cargo-matrix.json` 启用 feature matrix，`Cross.toml` 或 `.rs-ci-cross.toml` 启用 cross，`.rs-ci-platform.toml` 启用 platform；Cargo package metadata 启用 miri 和 AddressSanitizer，直接 Loom 依赖启用 loom；`fuzz/Cargo.toml` 必须包含 `cargo-fuzz = true` 标记才会启用 fuzz。
 
 未配置的可选 suite 会明确输出 `skipped: not configured`。一旦配置，缺少工具或命令失败都会报错，不会静默跳过。
 
 启用 Miri 的 package 可以在 `[package.metadata.rs-infra]` 中设置 `miri-test-args`，将 Cargo 测试目标或名称过滤条件传给 Miri。这样可以把耗时较长的检查集中到指定的安全关键测试上。
+
+### Nightly、sanitizer、fuzz 和 Loom 检查
+
+Miri、AddressSanitizer 和 fuzz 共用 `RS_INFRA_NIGHTLY_TOOLCHAIN`，默认值为
+`nightly`。设置为 `nightly-2026-06-05` 可沿用旧 CI 固定的工具链。
+工作流需要预先安装该工具链及所需的 `miri`、`rust-src` 组件，并安装指定版本的
+cargo-fuzz。
+
+AddressSanitizer 只运行明确声明 `sanitizers = ["address"]` 的 workspace 包。
+配置放在 `[package.metadata.rs-infra]` 中，也兼容旧的
+`[package.metadata.rs-ci]`；两者同时存在时以新配置为准。空列表表示不启用，
+格式错误、重复条目或不支持的 sanitizer 都会报错。
+工具逐包运行 `-Zbuild-std` 和全部 feature，并选择宿主 target，支持 Linux x86_64、
+macOS x86_64 和 macOS aarch64；其他平台明确提示跳过。
+运行时会在原有 `RUSTFLAGS`、`RUSTDOCFLAGS` 后追加 `-Zsanitizer=address`，
+任一包的测试失败都会使检查失败。
+
+Fuzz 先通过 `cargo +<toolchain> fuzz list` 发现 target，再逐个执行
+`cargo +<toolchain> fuzz run`，实际构建并运行 smoke 测试。
+`RS_INFRA_FUZZ_SECONDS_PER_TARGET` 控制每个 target 的运行秒数，默认 `10`；
+`RS_INFRA_FUZZ_MAX_LEN` 控制输入最大长度，默认 `4096`，两者必须为正整数。
+旧项目需要更大输入时可设置 `RS_INFRA_FUZZ_MAX_LEN=16384`。
+工具向 libFuzzer 传入 `-max_total_time`、`-max_len`，并为每个 target 设置独立的
+`-artifact_prefix`，路径为 `fuzz/artifacts/<target>/`。
+失败后保留 crash 文件，由工作流上传该目录；cargo-fuzz 也可能更新 corpus 和构建产物。
+未发现 target、发现命令失败、参数无效或任一 target 失败都会报错。
+
+Loom 根据 Cargo metadata 中的直接依赖筛选 workspace 成员，支持 dev、optional
+和重命名的 `loom` 依赖。先设置 `RUSTFLAGS=--cfg loom`，逐包使用
+`--release --all-features loom -- --list` 发现模型；任何已启用包没有模型时都会失败。
+随后在 release 模式、全部 feature 下执行各包匹配的测试。
+没有 Loom 依赖时明确提示跳过；注释和传递依赖不会启用检查。
+Loom 使用项目配置的 Cargo 工具链。
+
+```bash
+RS_INFRA_NIGHTLY_TOOLCHAIN=nightly-2026-06-05 rs-infra-verify run --suite miri
+RS_INFRA_NIGHTLY_TOOLCHAIN=nightly-2026-06-05 rs-infra-verify run --suite address-sanitizer
+RS_INFRA_NIGHTLY_TOOLCHAIN=nightly-2026-06-05 RS_INFRA_FUZZ_MAX_LEN=16384 rs-infra-verify run --suite fuzz
+rs-infra-verify run --suite loom
+```
 
 ## 延伸阅读
 
