@@ -37,6 +37,8 @@ workspace 依赖已出现在 crates.io。
 
 未配置的可选 suite 会明确输出 `skipped: not configured`。一旦配置，缺少工具或命令失败都会报错，不会静默跳过。
 
+启用 Miri 的 package 可以在 `[package.metadata.rs-infra]` 中设置 `miri-test-args`，将 Cargo 测试目标或名称过滤条件传给 Miri。这样可以把耗时较长的检查集中到指定的安全关键测试上。
+
 ## 延伸阅读
 
 可通过命令帮助和源码测试了解实际接口。切换到 [English README](README.md)。

@@ -123,14 +123,7 @@ impl Suite {
             Self::FeatureMatrix => &["check", "--locked", "--workspace", "--all-features"],
             Self::Cross => &["cross", "test", "--locked", "--workspace", "--all-features"],
             Self::Platform => &["test", "--locked", "--workspace", "--all-features"],
-            Self::Miri => &[
-                "+nightly",
-                "miri",
-                "test",
-                "--locked",
-                "--workspace",
-                "--all-features",
-            ],
+            Self::Miri => &["+nightly", "miri", "test", "--locked", "--all-features"],
             Self::AddressSanitizer => &[
                 "test",
                 "--locked",

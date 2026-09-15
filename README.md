@@ -38,6 +38,8 @@ Optional suites use the legacy rs-ci project inputs: `.rs-ci-cargo-matrix.json` 
 
 An unconfigured optional suite prints an explicit `skipped: not configured` message. Once configured, missing executables or failed commands are errors; configuration is never silently ignored.
 
+An opted-in package can set `miri-test-args` in `[package.metadata.rs-infra]` to pass Cargo test-target or name filters to Miri. This keeps expensive checks focused on selected safety-sensitive tests.
+
 ## Learn More
 
 See the command help and source tests for the supported interface. Switch to [中文文档](README.zh_CN.md).

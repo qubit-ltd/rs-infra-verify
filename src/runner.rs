@@ -17,6 +17,7 @@ use anyhow::bail;
 
 use crate::PlanStatus;
 use crate::Suite;
+use crate::metadata::miri_packages;
 use crate::plan;
 
 /// Checks that a project's lockfile is current.
@@ -76,6 +77,9 @@ pub fn run_suite(project: &Path, suite: Suite) -> Result<()> {
         println!("{}", entry.message());
         return Ok(());
     }
+    if suite == Suite::Miri {
+        return run_miri(project, &entry.command);
+    }
     let (program, args): (&str, Vec<String>) = match suite {
         Suite::Cross => (entry.command[0].as_str(), entry.command[1..].to_vec()),
         Suite::AddressSanitizer => (
@@ -85,6 +89,85 @@ pub fn run_suite(project: &Path, suite: Suite) -> Result<()> {
         _ => ("cargo", entry.command.clone()),
     };
     run_program(project, program, &args)
+}
+
+/// Runs each configured workspace package under Miri.
+///
+/// # Parameters
+///
+/// * `project` - Workspace root whose Miri-enabled packages are tested.
+/// * `command` - Base Cargo Miri command planned for the suite.
+///
+/// # Errors
+///
+/// Returns an error when metadata is invalid, Miri cannot start, it selects no
+/// tests, or a selected package fails.
+fn run_miri(project: &Path, command: &[String]) -> Result<()> {
+    let miriflags = miri_flags(&std::env::var("MIRIFLAGS").unwrap_or_default());
+    for package in miri_packages(project)? {
+        let mut arguments = command.to_vec();
+        arguments.extend(["--package".to_owned(), package.name.clone()]);
+        arguments.extend(package.test_args);
+        let output = Command::new("cargo")
+            .args(&arguments)
+            .current_dir(project)
+            .env("PROPTEST_DISABLE_FAILURE_PERSISTENCE", "1")
+            .env("PROPTEST_CASES", "8")
+            .env("MIRIFLAGS", &miriflags)
+            .output()
+            .with_context(|| format!("failed to start cargo {}", arguments.join(" ")))?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        print!("{stdout}");
+        eprint!("{stderr}");
+        if !output.status.success() {
+            bail!("Miri failed for package {}", package.name);
+        }
+        if !output_reports_tests(&format!("{stdout}\n{stderr}")) {
+            bail!("Miri selected no tests for package {}", package.name);
+        }
+    }
+    Ok(())
+}
+
+/// Adds Miri's filesystem allowance while retaining caller-provided flags.
+///
+/// # Returns
+///
+/// The existing `MIRIFLAGS` followed by `-Zmiri-disable-isolation` unless that
+/// flag is already present.
+fn miri_flags(current: &str) -> String {
+    if current
+        .split_whitespace()
+        .any(|flag| flag == "-Zmiri-disable-isolation")
+    {
+        current.to_owned()
+    } else if current.is_empty() {
+        "-Zmiri-disable-isolation".to_owned()
+    } else {
+        format!("{current} -Zmiri-disable-isolation")
+    }
+}
+
+/// Checks whether captured test output reports at least one selected test.
+///
+/// # Parameters
+///
+/// * `output` - One stream of Cargo or test-harness output.
+///
+/// # Returns
+///
+/// `true` when a test harness reports a positive test count.
+fn output_reports_tests(output: &str) -> bool {
+    output.lines().any(|line| {
+        let Some(count) = line.strip_prefix("running ") else {
+            return false;
+        };
+        let Some((count, unit)) = count.split_once(' ') else {
+            return false;
+        };
+        matches!(unit, "test" | "tests") && count.parse::<u32>().is_ok_and(|count| count > 0)
+    })
 }
 
 /// Runs a program in the target project and reports a non-zero exit status.
@@ -154,4 +237,28 @@ fn run_quiet(project: &Path, args: &[&str]) -> Result<()> {
         );
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::miri_flags;
+    use super::output_reports_tests;
+
+    #[test]
+    fn test_miri_flags_allow_filesystem_and_preserve_existing_values() {
+        assert_eq!(
+            miri_flags("-Zmiri-backtrace=full"),
+            "-Zmiri-backtrace=full -Zmiri-disable-isolation"
+        );
+        assert_eq!(
+            miri_flags("-Zmiri-disable-isolation"),
+            "-Zmiri-disable-isolation"
+        );
+    }
+
+    #[test]
+    fn test_miri_output_requires_a_positive_test_count() {
+        assert!(output_reports_tests("running 1 test\ntest sample ... ok"));
+        assert!(!output_reports_tests("running 0 tests\n"));
+    }
 }

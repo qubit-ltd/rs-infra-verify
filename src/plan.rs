@@ -13,6 +13,7 @@ use anyhow::Context;
 use anyhow::Result;
 
 use crate::Suite;
+use crate::metadata::miri_packages;
 use crate::plan_entry::PlanEntry;
 use crate::plan_status::PlanStatus;
 
@@ -95,7 +96,7 @@ fn is_configured(project: &Path, suite: Suite) -> Result<bool> {
             project.join(".infra/ci/platform.toml").is_file()
                 || project.join(".rs-ci-platform.toml").is_file()
         }
-        Suite::Miri => has_metadata_flag(&manifest_text, "miri", "true"),
+        Suite::Miri => !miri_packages(project)?.is_empty(),
         Suite::AddressSanitizer => {
             manifest_text.contains("sanitizers") && manifest_text.contains("address")
         }
@@ -106,26 +107,5 @@ fn is_configured(project: &Path, suite: Suite) -> Result<bool> {
                     .map(|text| text.contains("cargo-fuzz") && text.contains("true"))
                     .unwrap_or(false)
         }
-    })
-}
-
-/// Checks a manifest line for a metadata key/value pair.
-///
-/// # Parameters
-///
-/// * `manifest` - Manifest text to inspect.
-/// * `key` - Metadata key to find.
-/// * `value` - Required metadata value.
-///
-/// # Returns
-///
-/// `true` when a matching metadata assignment is present.
-fn has_metadata_flag(manifest: &str, key: &str, value: &str) -> bool {
-    manifest.lines().any(|line| {
-        let compact: String = line
-            .chars()
-            .filter(|character| !character.is_whitespace())
-            .collect();
-        compact == format!("{key}={value}") || compact.ends_with(&format!(".{key}={value}"))
     })
 }
