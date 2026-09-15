@@ -77,6 +77,12 @@ pub fn run_suite(project: &Path, suite: Suite) -> Result<()> {
         println!("{}", entry.message());
         return Ok(());
     }
+    if suite == Suite::Package {
+        return crate::package::verify(project);
+    }
+    if suite == Suite::Readme {
+        return crate::readme::verify(project);
+    }
     if suite == Suite::Miri {
         return run_miri(project, &entry.command);
     }

@@ -80,6 +80,7 @@ fn is_configured(project: &Path, suite: Suite) -> Result<bool> {
         | Suite::Build
         | Suite::Test
         | Suite::Doc
+        | Suite::Readme
         | Suite::Package
         | Suite::Clippy
         | Suite::Audit => true,

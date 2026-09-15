@@ -39,19 +39,7 @@ pub(crate) struct MiriPackage {
 /// Returns an error when Cargo metadata cannot be loaded or a package's Miri
 /// configuration has an invalid type.
 pub(crate) fn miri_packages(project: &Path) -> Result<Vec<MiriPackage>> {
-    let output = Command::new("cargo")
-        .args(["metadata", "--no-deps", "--format-version", "1"])
-        .current_dir(project)
-        .output()
-        .context("failed to start cargo metadata")?;
-    if !output.status.success() {
-        bail!(
-            "cargo metadata failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-    let metadata: Value =
-        serde_json::from_slice(&output.stdout).context("cargo metadata returned invalid JSON")?;
+    let metadata = workspace_metadata(project)?;
     miri_packages_from_metadata(&metadata)
 }
 
@@ -144,6 +132,37 @@ fn parse_miri_test_args(metadata: &Value, package_id: &str) -> Result<Vec<String
             })
         })
         .collect()
+}
+
+/// Queries Cargo workspace metadata.
+///
+/// # Parameters
+///
+/// * `project` - Working directory for the Cargo metadata subprocess.
+///
+/// # Returns
+///
+/// Cargo's JSON metadata including workspace members and their dependencies.
+///
+/// # Errors
+///
+/// Returns a contextual process or JSON error if Cargo metadata cannot load.
+/// This runs a blocking subprocess and may update Cargo metadata caches.
+pub(crate) fn workspace_metadata(project: &Path) -> Result<Value> {
+    let output = Command::new("cargo")
+        .args(["metadata", "--no-deps", "--format-version", "1"])
+        .current_dir(project)
+        .output()
+        .context("failed to start cargo metadata")?;
+    if !output.status.success() {
+        bail!(
+            "cargo metadata failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let metadata: Value =
+        serde_json::from_slice(&output.stdout).context("cargo metadata returned invalid JSON")?;
+    Ok(metadata)
 }
 
 #[cfg(test)]

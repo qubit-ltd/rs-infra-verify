@@ -69,8 +69,10 @@ enum SuiteArg {
     Test,
     /// Build documentation.
     Doc,
-    /// Package all workspace packages.
+    /// Build and verify each publishable workspace package.
     Package,
+    /// Check workspace README dependency versions.
+    Readme,
     /// Run Clippy.
     Clippy,
     /// Check the feature matrix.
@@ -139,6 +141,7 @@ impl From<SuiteArg> for Suite {
             SuiteArg::Test => Self::Test,
             SuiteArg::Doc => Self::Doc,
             SuiteArg::Package => Self::Package,
+            SuiteArg::Readme => Self::Readme,
             SuiteArg::Clippy => Self::Clippy,
             SuiteArg::FeatureMatrix => Self::FeatureMatrix,
             SuiteArg::Cross => Self::Cross,

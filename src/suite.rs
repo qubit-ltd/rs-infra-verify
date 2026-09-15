@@ -27,8 +27,10 @@ pub enum Suite {
     Test,
     /// Builds documentation for all workspace packages.
     Doc,
-    /// Packages all workspace packages.
+    /// Builds and verifies each publishable workspace package.
     Package,
+    /// Checks README dependency versions against workspace package versions.
+    Readme,
     /// Runs Clippy for all workspace targets and features.
     Clippy,
     /// Checks the configured feature matrix.
@@ -63,6 +65,7 @@ impl Suite {
             Self::Test,
             Self::Doc,
             Self::Package,
+            Self::Readme,
             Self::Clippy,
             Self::FeatureMatrix,
             Self::Cross,
@@ -79,8 +82,10 @@ impl Suite {
     ///
     /// # Returns
     ///
-    /// The program arguments used to execute this suite. The first argument
-    /// is the Cargo subcommand unless the suite uses an external program.
+    /// The base program arguments used to execute this suite. Package arguments
+    /// are expanded per publishable member at runtime. README checks run in Rust
+    /// and return an empty argument list. Otherwise the first argument is the
+    /// Cargo subcommand unless the suite uses an external program.
     #[must_use]
     pub const fn command(self) -> &'static [&'static str] {
         match self {
@@ -106,13 +111,8 @@ impl Suite {
                 "--all-features",
                 "--no-deps",
             ],
-            Self::Package => &[
-                "package",
-                "--list",
-                "--locked",
-                "--workspace",
-                "--allow-dirty",
-            ],
+            Self::Package => &["package", "--allow-dirty"],
+            Self::Readme => &[],
             Self::Clippy => &[
                 "clippy",
                 "--locked",
@@ -152,6 +152,7 @@ impl Suite {
             Self::Test => "test",
             Self::Doc => "doc",
             Self::Package => "package",
+            Self::Readme => "readme",
             Self::Clippy => "clippy",
             Self::FeatureMatrix => "feature-matrix",
             Self::Cross => "cross",

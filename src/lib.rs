@@ -8,9 +8,11 @@
 //! Cargo project verification primitives.
 
 mod metadata;
+mod package;
 mod plan;
 mod plan_entry;
 mod plan_status;
+mod readme;
 mod runner;
 mod suite;
 
@@ -39,7 +41,7 @@ mod tests {
 
     #[test]
     fn every_legacy_capability_has_a_stable_suite_command() {
-        assert_eq!(Suite::all().len(), 14);
+        assert_eq!(Suite::all().len(), 15);
         assert_eq!(
             Suite::Clippy.command(),
             &[
@@ -55,21 +57,11 @@ mod tests {
             &["cross", "test", "--locked", "--workspace", "--all-features"]
         );
         assert_eq!(Suite::Audit.command(), &["audit"]);
-        assert_eq!(
-            Suite::Package.command(),
-            &[
-                "package",
-                "--list",
-                "--locked",
-                "--workspace",
-                "--allow-dirty"
-            ]
-        );
+        assert_eq!(Suite::Package.command(), &["package", "--allow-dirty"]);
         for suite in [
             Suite::Build,
             Suite::Test,
             Suite::Doc,
-            Suite::Package,
             Suite::Clippy,
             Suite::FeatureMatrix,
             Suite::Cross,
