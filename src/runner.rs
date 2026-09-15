@@ -83,15 +83,20 @@ pub fn run_suite(project: &Path, suite: Suite) -> Result<()> {
     if suite == Suite::Readme {
         return crate::readme::verify(project);
     }
+    if suite == Suite::AddressSanitizer {
+        return crate::sanitizer::verify(project);
+    }
+    if suite == Suite::Loom {
+        return crate::loom::verify(project);
+    }
+    if suite == Suite::Fuzz {
+        return crate::fuzz::verify(project);
+    }
     if suite == Suite::Miri {
         return run_miri(project, &entry.command);
     }
     let (program, args): (&str, Vec<String>) = match suite {
         Suite::Cross => (entry.command[0].as_str(), entry.command[1..].to_vec()),
-        Suite::AddressSanitizer => (
-            "cargo",
-            [vec!["+nightly".to_owned()], entry.command.clone()].concat(),
-        ),
         _ => ("cargo", entry.command.clone()),
     };
     run_program(project, program, &args)

@@ -7,13 +7,17 @@
 // =============================================================================
 //! Cargo project verification primitives.
 
+mod fuzz;
+mod loom;
 mod metadata;
+mod nightly;
 mod package;
 mod plan;
 mod plan_entry;
 mod plan_status;
 mod readme;
 mod runner;
+mod sanitizer;
 mod suite;
 
 pub use crate::plan::plan;

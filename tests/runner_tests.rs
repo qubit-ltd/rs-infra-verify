@@ -201,3 +201,81 @@ fn test_readme_reports_invalid_utf8() {
     assert!(!result.status.success());
     assert!(String::from_utf8_lossy(&result.stderr).contains("cannot read"));
 }
+
+/// Creates a virtual workspace with a renamed local Loom dependency.
+fn loom_workspace(root: &Path, model_source: &str) {
+    fs::write(
+        root.join("Cargo.toml"),
+        "[workspace]\nmembers=['model','plain']\nexclude=['dependency']\nresolver='3'\n",
+    )
+    .expect("workspace");
+    package(&root.join("dependency"), "loom", "", "");
+    package(
+        &root.join("plain"),
+        "plain",
+        "",
+        "compile_error!(\"unselected package\");",
+    );
+    package(
+        &root.join("model"),
+        "model",
+        "[dev-dependencies]\nmodel_checker={package='loom',path='../dependency'}",
+        model_source,
+    );
+    assert!(
+        Command::new("cargo")
+            .args(["generate-lockfile", "--offline"])
+            .current_dir(root)
+            .status()
+            .expect("fixture lockfile")
+            .success()
+    );
+}
+
+#[test]
+fn test_loom_discovers_workspace_dependencies_and_runs_release_models() {
+    let root = tempdir().expect("fixture");
+    loom_workspace(
+        root.path(),
+        "#[cfg(all(loom, debug_assertions))]\ncompile_error!(\"must use release\");\n#[cfg(loom)]\n#[test]\nfn test_loom_model() {}\n",
+    );
+    let result = verify(root.path(), "loom");
+    assert!(result.status.success(), "{result:?}");
+    let output = String::from_utf8_lossy(&result.stdout);
+    assert!(
+        output.contains("test_loom_model") && output.contains("running 1 test"),
+        "{output}"
+    );
+    assert!(root.path().join("target/release").is_dir());
+}
+
+#[test]
+fn test_loom_zero_models_and_failed_models_are_errors() {
+    for source in [
+        "#[test]\nfn unrelated() {}",
+        "#[cfg(loom)]\n#[test]\nfn test_loom_failure() { panic!(\"model failed\"); }",
+    ] {
+        let root = tempdir().expect("fixture");
+        loom_workspace(root.path(), source);
+        let result = verify(root.path(), "loom");
+        assert!(!result.status.success(), "{result:?}");
+        assert!(
+            String::from_utf8_lossy(&result.stderr).contains("model"),
+            "{result:?}"
+        );
+    }
+}
+
+#[test]
+fn test_loom_ignores_comments_without_actual_dependency() {
+    let root = tempdir().expect("fixture");
+    package(
+        root.path(),
+        "plain",
+        "# loom is deliberately absent",
+        "compile_error!(\"must skip\");",
+    );
+    let result = verify(root.path(), "loom");
+    assert!(result.status.success(), "{result:?}");
+    assert!(String::from_utf8_lossy(&result.stdout).contains("skipped"));
+}

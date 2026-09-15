@@ -14,6 +14,7 @@ use anyhow::Result;
 
 use crate::Suite;
 use crate::metadata::miri_packages;
+use crate::nightly::toolchain;
 use crate::plan_entry::PlanEntry;
 use crate::plan_status::PlanStatus;
 
@@ -44,13 +45,19 @@ pub fn plan(project: &Path, selected: Option<Suite>) -> Result<Vec<PlanEntry>> {
             } else {
                 PlanStatus::Skipped(format!("not configured in {}", project.display()))
             };
+            let mut command: Vec<String> = suite
+                .command()
+                .iter()
+                .map(|arg| (*arg).to_owned())
+                .collect();
+            if matches!(status, PlanStatus::Ready)
+                && matches!(suite, Suite::Miri | Suite::AddressSanitizer | Suite::Fuzz)
+            {
+                command.insert(0, toolchain()?);
+            }
             Ok(PlanEntry {
                 suite,
-                command: suite
-                    .command()
-                    .iter()
-                    .map(|arg| (*arg).to_owned())
-                    .collect(),
+                command,
                 status,
             })
         })
@@ -73,7 +80,7 @@ pub fn plan(project: &Path, selected: Option<Suite>) -> Result<Vec<PlanEntry>> {
 /// Returns an error when the project's `Cargo.toml` cannot be read.
 fn is_configured(project: &Path, suite: Suite) -> Result<bool> {
     let manifest = project.join("Cargo.toml");
-    let manifest_text = std::fs::read_to_string(&manifest)
+    let _manifest_text = std::fs::read_to_string(&manifest)
         .with_context(|| format!("failed to read {}", manifest.display()))?;
     Ok(match suite {
         Suite::Lock
@@ -98,10 +105,8 @@ fn is_configured(project: &Path, suite: Suite) -> Result<bool> {
                 || project.join(".rs-ci-platform.toml").is_file()
         }
         Suite::Miri => !miri_packages(project)?.is_empty(),
-        Suite::AddressSanitizer => {
-            manifest_text.contains("sanitizers") && manifest_text.contains("address")
-        }
-        Suite::Loom => manifest_text.contains("loom"),
+        Suite::AddressSanitizer => !crate::sanitizer::packages(project)?.is_empty(),
+        Suite::Loom => !crate::loom::packages(project)?.is_empty(),
         Suite::Fuzz => {
             project.join("fuzz/Cargo.toml").is_file()
                 && std::fs::read_to_string(project.join("fuzz/Cargo.toml"))

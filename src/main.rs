@@ -87,7 +87,7 @@ enum SuiteArg {
     AddressSanitizer,
     /// Run Loom.
     Loom,
-    /// List fuzz targets.
+    /// Build and smoke-test every fuzz target.
     Fuzz,
     /// Run cargo-audit.
     Audit,

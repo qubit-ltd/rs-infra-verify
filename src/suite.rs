@@ -45,7 +45,7 @@ pub enum Suite {
     AddressSanitizer,
     /// Runs tests with the Loom concurrency model checker.
     Loom,
-    /// Lists configured fuzz targets.
+    /// Builds and smoke-tests every configured fuzz target.
     Fuzz,
     /// Runs cargo-audit.
     Audit,
@@ -85,7 +85,8 @@ impl Suite {
     /// The base program arguments used to execute this suite. Package arguments
     /// are expanded per publishable member at runtime. README checks run in Rust
     /// and return an empty argument list. Otherwise the first argument is the
-    /// Cargo subcommand unless the suite uses an external program.
+    /// Cargo subcommand unless the suite uses an external program. Nightly suite
+    /// plans prepend the configured toolchain; fuzz expands targets at runtime.
     #[must_use]
     pub const fn command(self) -> &'static [&'static str] {
         match self {
@@ -123,18 +124,10 @@ impl Suite {
             Self::FeatureMatrix => &["check", "--locked", "--workspace", "--all-features"],
             Self::Cross => &["cross", "test", "--locked", "--workspace", "--all-features"],
             Self::Platform => &["test", "--locked", "--workspace", "--all-features"],
-            Self::Miri => &["+nightly", "miri", "test", "--locked", "--all-features"],
-            Self::AddressSanitizer => &[
-                "test",
-                "--locked",
-                "-Zbuild-std",
-                "--target",
-                "x86_64-unknown-linux-gnu",
-                "--workspace",
-                "--all-features",
-            ],
-            Self::Loom => &["test", "--locked", "--workspace", "--all-features", "loom"],
-            Self::Fuzz => &["fuzz", "list"],
+            Self::Miri => &["miri", "test", "--locked", "--all-features"],
+            Self::AddressSanitizer => &["test", "--locked", "-Zbuild-std", "--all-features"],
+            Self::Loom => &["test", "--locked", "--release", "--all-features", "loom"],
+            Self::Fuzz => &["fuzz", "run"],
             Self::Audit => &["audit"],
         }
     }
