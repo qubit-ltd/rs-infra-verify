@@ -29,6 +29,10 @@ cargo run --manifest-path /path/to/rs-infra-verify/Cargo.toml -- --help
 
 使用 `run --suite <name>` 运行单个 suite，或使用 `run --suite all` 运行全部 suite。可用 suite 包括 lock、build、test、doc、package、clippy、feature-matrix、cross、platform、miri、address-sanitizer、loom、fuzz 和 audit。
 
+package suite 会列出各 workspace package 实际包含的文件；编译和验证由
+build、test、doc suite 单独负责，因此 package 检查不要求尚未发布的
+workspace 依赖已出现在 crates.io。
+
 可选 suite 沿用旧 rs-ci 的项目配置入口：`.rs-ci-cargo-matrix.json` 启用 feature matrix，`Cross.toml` 或 `.rs-ci-cross.toml` 启用 cross，`.rs-ci-platform.toml` 启用 platform；Cargo package metadata 启用 miri、AddressSanitizer 和 loom；`fuzz/Cargo.toml` 必须包含 `cargo-fuzz = true` 标记才会启用 fuzz。
 
 未配置的可选 suite 会明确输出 `skipped: not configured`。一旦配置，缺少工具或命令失败都会报错，不会静默跳过。

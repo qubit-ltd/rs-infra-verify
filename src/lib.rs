@@ -41,13 +41,44 @@ mod tests {
         assert_eq!(Suite::all().len(), 14);
         assert_eq!(
             Suite::Clippy.command(),
-            &["clippy", "--workspace", "--all-targets", "--all-features"]
+            &[
+                "clippy",
+                "--locked",
+                "--workspace",
+                "--all-targets",
+                "--all-features"
+            ]
         );
         assert_eq!(
             Suite::Cross.command(),
-            &["cross", "test", "--workspace", "--all-features"]
+            &["cross", "test", "--locked", "--workspace", "--all-features"]
         );
         assert_eq!(Suite::Audit.command(), &["audit"]);
+        assert_eq!(
+            Suite::Package.command(),
+            &[
+                "package",
+                "--list",
+                "--locked",
+                "--workspace",
+                "--allow-dirty"
+            ]
+        );
+        for suite in [
+            Suite::Build,
+            Suite::Test,
+            Suite::Doc,
+            Suite::Package,
+            Suite::Clippy,
+            Suite::FeatureMatrix,
+            Suite::Cross,
+            Suite::Platform,
+            Suite::Miri,
+            Suite::AddressSanitizer,
+            Suite::Loom,
+        ] {
+            assert!(suite.command().contains(&"--locked"), "{}", suite.name());
+        }
     }
 
     #[test]

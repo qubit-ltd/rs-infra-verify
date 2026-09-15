@@ -29,6 +29,11 @@ The project's `.infra` configuration remains the source of truth; this tool does
 
 Run one suite with `run --suite <name>`, or use `run --suite all` to execute every suite. Available suites are lock, build, test, doc, package, clippy, feature-matrix, cross, platform, miri, address-sanitizer, loom, fuzz, and audit.
 
+The package suite lists the files included in each workspace package. Build,
+test, and documentation suites separately perform compilation and validation,
+so package listing does not require unpublished sibling versions to exist on
+crates.io.
+
 Optional suites use the legacy rs-ci project inputs: `.rs-ci-cargo-matrix.json` enables feature-matrix; `Cross.toml` or `.rs-ci-cross.toml` enables cross; `.rs-ci-platform.toml` enables platform; package metadata enables miri, AddressSanitizer, and loom; and `fuzz/Cargo.toml` must contain `cargo-fuzz = true` to enable fuzz.
 
 An unconfigured optional suite prints an explicit `skipped: not configured` message. Once configured, missing executables or failed commands are errors; configuration is never silently ignored.
