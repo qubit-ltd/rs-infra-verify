@@ -27,11 +27,25 @@ cargo run --manifest-path /path/to/rs-infra-verify/Cargo.toml -- --help
 
 ## 校验 suite
 
-使用 `run --suite <name>` 运行单个 suite，或使用 `run --suite all` 运行全部 suite。可用 suite 包括 lock、build、test、doc、package、clippy、feature-matrix、cross、platform、miri、address-sanitizer、loom、fuzz 和 audit。
+使用 `run --suite <name>` 运行单个 suite，或使用 `run --suite all` 运行全部 suite。可用 suite 包括 lock、build、test、doc、package、readme、clippy、feature-matrix、cross、platform、miri、address-sanitizer、loom、fuzz 和 audit。
 
-package suite 会列出各 workspace package 实际包含的文件；编译和验证由
-build、test、doc suite 单独负责，因此 package 检查不要求尚未发布的
-workspace 依赖已出现在 crates.io。
+`package` suite 对每个可发布的 workspace 成员执行
+`cargo package --package <name> --allow-dirty`，由 Cargo 构建并验证打包结果。
+`publish = false` 或 `publish = []` 的成员会跳过。对于本地路径依赖，工具按包
+传入 crates.io patch，使尚未发布的兄弟包也能参与验证。验证使用的是这些本地依赖，
+不能据此认定对应版本已经发布到 registry。
+
+`readme` suite 读取各成员声明的 README（未声明时使用 `README.md`）及
+`README.zh_CN.md`，检查其中所有 workspace 包的依赖声明。包版本为 `1.2.3` 时，
+示例必须写作 `demo = "1.2"` 或 `demo = { version = "1.2" }`。
+补丁版本、版本范围及缺少版本的声明都会报错，并给出文件路径和行号。
+工具支持继承的 workspace 版本及自定义 README 路径；其他依赖不检查，
+没有 README 或没有匹配声明时会明确提示跳过。
+
+```bash
+rs-infra-verify --project /path/to/project run --suite package
+rs-infra-verify --project /path/to/project run --suite readme
+```
 
 可选 suite 沿用旧 rs-ci 的项目配置入口：`.rs-ci-cargo-matrix.json` 启用 feature matrix，`Cross.toml` 或 `.rs-ci-cross.toml` 启用 cross，`.rs-ci-platform.toml` 启用 platform；Cargo package metadata 启用 miri、AddressSanitizer 和 loom；`fuzz/Cargo.toml` 必须包含 `cargo-fuzz = true` 标记才会启用 fuzz。
 

@@ -27,12 +27,27 @@ The project's `.infra` configuration remains the source of truth; this tool does
 
 ## Verification suites
 
-Run one suite with `run --suite <name>`, or use `run --suite all` to execute every suite. Available suites are lock, build, test, doc, package, clippy, feature-matrix, cross, platform, miri, address-sanitizer, loom, fuzz, and audit.
+Run one suite with `run --suite <name>`, or use `run --suite all` to execute every suite. Available suites are lock, build, test, doc, package, readme, clippy, feature-matrix, cross, platform, miri, address-sanitizer, loom, fuzz, and audit.
 
-The package suite lists the files included in each workspace package. Build,
-test, and documentation suites separately perform compilation and validation,
-so package listing does not require unpublished sibling versions to exist on
-crates.io.
+The `package` suite runs `cargo package --package <name> --allow-dirty`
+for each publishable workspace member, including Cargo's package build verification.
+Members with `publish = false` or `publish = []` are skipped. Local path dependencies
+receive package-specific crates.io patches so unpublished sibling versions can be
+verified locally. This checks the package with those local dependencies; it does
+not prove that the sibling versions have been published to a registry.
+
+The `readme` suite checks each member's declared README (or `README.md`) and
+`README.zh_CN.md`. In these files, dependency declarations for any workspace
+package must use its exact current major.minor version: package version `1.2.3`
+requires `demo = "1.2"` or `demo = { version = "1.2" }`. Patch versions, ranges,
+and declarations without a version fail with file and line diagnostics. Unrelated
+dependencies are ignored; missing files or no matching declarations are reported
+as skips. Inherited workspace versions and custom README paths are supported.
+
+```bash
+rs-infra-verify --project /path/to/project run --suite package
+rs-infra-verify --project /path/to/project run --suite readme
+```
 
 Optional suites use the legacy rs-ci project inputs: `.rs-ci-cargo-matrix.json` enables feature-matrix; `Cross.toml` or `.rs-ci-cross.toml` enables cross; `.rs-ci-platform.toml` enables platform; package metadata enables miri, AddressSanitizer, and loom; and `fuzz/Cargo.toml` must contain `cargo-fuzz = true` to enable fuzz.
 
