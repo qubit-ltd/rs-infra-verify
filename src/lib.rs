@@ -8,6 +8,7 @@
 //! Cargo project verification primitives.
 
 mod fuzz;
+mod fuzz_mode;
 mod loom;
 mod metadata;
 mod nightly;

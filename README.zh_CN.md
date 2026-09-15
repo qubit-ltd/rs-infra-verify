@@ -69,8 +69,17 @@ macOS x86_64 和 macOS aarch64；其他平台明确提示跳过。
 运行时会在原有 `RUSTFLAGS`、`RUSTDOCFLAGS` 后追加 `-Zsanitizer=address`，
 任一包的测试失败都会使检查失败。
 
-Fuzz 先通过 `cargo +<toolchain> fuzz list` 发现 target，再逐个执行
-`cargo +<toolchain> fuzz run`，实际构建并运行 smoke 测试。
+`RS_INFRA_FUZZ_MODE` 控制 fuzz 的执行方式，未设置或为空时默认使用 `smoke`：
+
+| 模式 | 行为 |
+| --- | --- |
+| `disabled` | 明确跳过，不校验 nightly、不调用 Cargo/cargo-fuzz，也不创建产物目录。 |
+| `build-only` | 发现 target 后逐个执行 `cargo +<toolchain> fuzz build <target>`，不运行 smoke，也不创建 crash 目录。 |
+| `smoke` | 发现 target 后逐个执行 `cargo +<toolchain> fuzz run <target>`，实际构建并运行 smoke。 |
+
+非法 mode 会在调用 Cargo 前报错。工具本身不安装 cargo-fuzz；工作流也应在
+`disabled` 时跳过 cargo-fuzz 安装步骤。`build-only` 会传播发现或构建失败；
+运行时长和输入长度参数只在 `smoke` 模式下校验。
 `RS_INFRA_FUZZ_SECONDS_PER_TARGET` 控制每个 target 的运行秒数，默认 `10`；
 `RS_INFRA_FUZZ_MAX_LEN` 控制输入最大长度，默认 `4096`，两者必须为正整数。
 旧项目需要更大输入时可设置 `RS_INFRA_FUZZ_MAX_LEN=16384`。

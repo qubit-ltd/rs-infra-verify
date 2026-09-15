@@ -13,6 +13,7 @@ use anyhow::Context;
 use anyhow::Result;
 
 use crate::Suite;
+use crate::fuzz_mode::FuzzMode;
 use crate::metadata::miri_packages;
 use crate::nightly::toolchain;
 use crate::plan_entry::PlanEntry;
@@ -40,7 +41,7 @@ pub fn plan(project: &Path, selected: Option<Suite>) -> Result<Vec<PlanEntry>> {
     suites
         .into_iter()
         .map(|suite| {
-            let status = if is_configured(project, suite)? {
+            let mut status = if is_configured(project, suite)? {
                 PlanStatus::Ready
             } else {
                 PlanStatus::Skipped(format!("not configured in {}", project.display()))
@@ -50,6 +51,16 @@ pub fn plan(project: &Path, selected: Option<Suite>) -> Result<Vec<PlanEntry>> {
                 .iter()
                 .map(|arg| (*arg).to_owned())
                 .collect();
+            if suite == Suite::Fuzz && matches!(status, PlanStatus::Ready) {
+                match FuzzMode::from_env()? {
+                    FuzzMode::Disabled => {
+                        status = PlanStatus::Skipped("RS_INFRA_FUZZ_MODE=disabled".to_owned());
+                        command.clear();
+                    }
+                    FuzzMode::BuildOnly => command = vec!["fuzz".to_owned(), "build".to_owned()],
+                    FuzzMode::Smoke => {}
+                }
+            }
             if matches!(status, PlanStatus::Ready)
                 && matches!(suite, Suite::Miri | Suite::AddressSanitizer | Suite::Fuzz)
             {

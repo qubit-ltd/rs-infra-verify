@@ -5,7 +5,7 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-//! Executes bounded cargo-fuzz smoke runs and preserves crash artifacts.
+//! Executes cargo-fuzz build or smoke checks, or explicitly skips disabled checks.
 
 use std::env;
 use std::env::VarError;
@@ -17,9 +17,10 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 
+use crate::fuzz_mode::FuzzMode;
 use crate::nightly::toolchain;
 
-/// Builds and runs every discovered fuzz target in `project`.
+/// Executes the configured fuzz mode for every discovered target in `project`.
 ///
 /// # Parameters
 ///
@@ -27,7 +28,7 @@ use crate::nightly::toolchain;
 ///
 /// # Returns
 ///
-/// Success when every target completes its bounded smoke run.
+/// Success when disabled, or when every target builds/runs in the selected mode.
 ///
 /// # Errors
 ///
@@ -36,9 +37,20 @@ use crate::nightly::toolchain;
 /// This runs Cargo subprocesses, updates fuzz corpora/build output, and retains
 /// crash artifacts in `fuzz/artifacts/<target>/`, including on failure.
 pub(crate) fn verify(project: &Path) -> Result<()> {
+    let mode = FuzzMode::from_env()?;
+    if mode == FuzzMode::Disabled {
+        println!("fuzz: skipped: RS_INFRA_FUZZ_MODE=disabled");
+        return Ok(());
+    }
     let nightly = toolchain()?;
-    let seconds = positive_setting("RS_INFRA_FUZZ_SECONDS_PER_TARGET", 10)?;
-    let max_len = positive_setting("RS_INFRA_FUZZ_MAX_LEN", 4096)?;
+    let limits = if mode == FuzzMode::Smoke {
+        Some((
+            positive_setting("RS_INFRA_FUZZ_SECONDS_PER_TARGET", 10)?,
+            positive_setting("RS_INFRA_FUZZ_MAX_LEN", 4096)?,
+        ))
+    } else {
+        None
+    };
     let output = Command::new("cargo")
         .args([&nightly, "fuzz", "list"])
         .current_dir(project)
@@ -71,6 +83,17 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
     }
     let project = fs::canonicalize(project).context("cannot resolve fuzz project root")?;
     for target in &targets {
+        let Some((seconds, max_len)) = limits else {
+            let status = Command::new("cargo")
+                .args([&nightly, "fuzz", "build", target])
+                .current_dir(&project)
+                .status()
+                .with_context(|| format!("failed to build fuzz target {target}"))?;
+            if !status.success() {
+                bail!("fuzz build failed for target {target}");
+            }
+            continue;
+        };
         let artifacts = project.join("fuzz/artifacts").join(target);
         fs::create_dir_all(&artifacts)
             .with_context(|| format!("cannot create {}", artifacts.display()))?;
@@ -91,7 +114,15 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
             );
         }
     }
-    println!("Fuzz smoke checks passed for {} target(s).", targets.len());
+    let label = if mode == FuzzMode::BuildOnly {
+        "build-only"
+    } else {
+        "smoke"
+    };
+    println!(
+        "Fuzz {label} checks passed for {} target(s).",
+        targets.len()
+    );
     Ok(())
 }
 

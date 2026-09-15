@@ -71,8 +71,18 @@ Linux x86_64, macOS x86_64, or macOS aarch64. Unsupported hosts explicitly skip.
 The tool appends `-Zsanitizer=address` to both `RUSTFLAGS` and `RUSTDOCFLAGS`,
 retaining existing flags, and propagates package failures.
 
-Fuzz discovers targets with `cargo +<toolchain> fuzz list`, then builds and
-runs each target with `cargo +<toolchain> fuzz run`. Configure positive integer
+`RS_INFRA_FUZZ_MODE` selects the fuzz operation (unset or empty defaults to `smoke`):
+
+| Mode | Behavior |
+| --- | --- |
+| `disabled` | Explicitly skips before checking nightly or invoking Cargo/cargo-fuzz; no artifacts are created. |
+| `build-only` | Discovers targets and runs `cargo +<toolchain> fuzz build <target>` for each; no smoke execution or crash directories. |
+| `smoke` | Discovers targets, then builds and runs each with `cargo +<toolchain> fuzz run <target>`. |
+
+Invalid modes fail before Cargo is invoked. The tool never installs cargo-fuzz;
+workflows must also skip their cargo-fuzz installation step when disabled.
+Discovery/build failures propagate in `build-only` mode. Smoke time and input
+limits are only validated in `smoke` mode. Configure positive integer
 limits with `RS_INFRA_FUZZ_SECONDS_PER_TARGET` (default `10`) and
 `RS_INFRA_FUZZ_MAX_LEN` (default `4096`). For projects previously using larger
 inputs, set `RS_INFRA_FUZZ_MAX_LEN=16384`. Each run receives libFuzzer's

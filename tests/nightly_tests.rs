@@ -43,6 +43,9 @@ case " $* " in
 beta
 }"
     ;;
+  *" fuzz build "*)
+    if [ "${FAIL_BUILD:-0}" = 1 ]; then exit 1; fi
+    ;;
   *" fuzz run "*)
     if [ "${FAIL_RUN:-0}" = 1 ]; then
       for arg in "$@"; do
@@ -87,6 +90,8 @@ fn cli(root: &Path, suite: &str) -> Command {
         .env_remove("RS_INFRA_NIGHTLY_TOOLCHAIN")
         .env_remove("RS_INFRA_FUZZ_SECONDS_PER_TARGET")
         .env_remove("RS_INFRA_FUZZ_MAX_LEN")
+        .env_remove("RS_INFRA_FUZZ_MODE")
+        .env_remove("FAIL_BUILD")
         .env_remove("FAIL_LIST")
         .env_remove("FAIL_RUN")
         .env_remove("FUZZ_TARGETS");
@@ -122,6 +127,7 @@ fn test_fuzz_runs_every_target_with_limits_and_artifact_directories() {
         if custom {
             command
                 .env("RS_INFRA_NIGHTLY_TOOLCHAIN", "nightly-2026-06-05")
+                .env("RS_INFRA_FUZZ_MODE", "smoke")
                 .env("RS_INFRA_FUZZ_SECONDS_PER_TARGET", "2")
                 .env("RS_INFRA_FUZZ_MAX_LEN", "128");
         }
@@ -277,4 +283,68 @@ fn test_sanitizer_ignores_unrelated_manifest_text() {
     assert!(String::from_utf8_lossy(&result.stdout).contains("skipped"));
     let log = fs::read_to_string(root.path().join("commands.log")).expect("commands");
     assert!(!log.contains("+nightly test"));
+}
+
+#[test]
+fn test_fuzz_disabled_requires_no_cargo_or_nightly() {
+    let root = fixture();
+    let result = cli(root.path(), "fuzz")
+        .env("RS_INFRA_FUZZ_MODE", "disabled")
+        .env("RS_INFRA_NIGHTLY_TOOLCHAIN", "")
+        .env("RS_INFRA_FUZZ_SECONDS_PER_TARGET", "invalid")
+        .env("PATH", "")
+        .output()
+        .expect("disabled suite");
+    assert!(result.status.success(), "{result:?}");
+    assert!(String::from_utf8_lossy(&result.stdout).contains("disabled"));
+    assert!(!root.path().join("commands.log").exists());
+    assert!(!root.path().join("fuzz/artifacts").exists());
+}
+
+#[test]
+fn test_fuzz_build_only_builds_every_target_without_smoke_side_effects() {
+    let root = fixture();
+    let result = cli(root.path(), "fuzz")
+        .env("RS_INFRA_FUZZ_MODE", "build-only")
+        .env("RS_INFRA_FUZZ_SECONDS_PER_TARGET", "invalid")
+        .env("RS_INFRA_FUZZ_MAX_LEN", "invalid")
+        .output()
+        .expect("build suite");
+    assert!(result.status.success(), "{result:?}");
+    let log = fs::read_to_string(root.path().join("commands.log")).expect("commands");
+    for target in ["alpha", "beta"] {
+        assert!(
+            log.contains(&format!("+nightly fuzz build {target}")),
+            "{log}"
+        );
+    }
+    assert!(
+        !log.contains("fuzz run") && !log.contains(" install "),
+        "{log}"
+    );
+    assert!(!root.path().join("fuzz/artifacts").exists());
+}
+
+#[test]
+fn test_fuzz_build_only_propagates_build_failure() {
+    let root = fixture();
+    let result = cli(root.path(), "fuzz")
+        .env("RS_INFRA_FUZZ_MODE", "build-only")
+        .env("FAIL_BUILD", "1")
+        .output()
+        .expect("build suite");
+    assert!(!result.status.success(), "{result:?}");
+    assert!(String::from_utf8_lossy(&result.stderr).contains("alpha"));
+}
+
+#[test]
+fn test_fuzz_invalid_mode_fails_before_cargo() {
+    let root = fixture();
+    let result = cli(root.path(), "fuzz")
+        .env("RS_INFRA_FUZZ_MODE", "unknown")
+        .output()
+        .expect("invalid suite");
+    assert!(!result.status.success(), "{result:?}");
+    assert!(String::from_utf8_lossy(&result.stderr).contains("RS_INFRA_FUZZ_MODE"));
+    assert!(!root.path().join("commands.log").exists());
 }
