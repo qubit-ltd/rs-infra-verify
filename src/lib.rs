@@ -80,6 +80,14 @@ mod tests {
     }
 
     #[test]
+    fn test_suite_does_not_execute_benchmark_targets() {
+        assert_eq!(
+            Suite::Test.command(),
+            &["test", "--locked", "--workspace", "--all-features"]
+        );
+    }
+
+    #[test]
     fn unconfigured_optional_capabilities_are_explicitly_skipped() {
         let project = tempdir().expect("temp project");
         fs::write(

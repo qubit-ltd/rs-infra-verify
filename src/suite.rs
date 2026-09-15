@@ -23,7 +23,7 @@ pub enum Suite {
     Lock,
     /// Builds all workspace targets with all features.
     Build,
-    /// Runs all workspace tests and targets with all features.
+    /// Runs all default workspace test targets with all features.
     Test,
     /// Builds documentation for all workspace packages.
     Doc,
@@ -98,13 +98,7 @@ impl Suite {
                 "--all-targets",
                 "--all-features",
             ],
-            Self::Test => &[
-                "test",
-                "--locked",
-                "--workspace",
-                "--all-targets",
-                "--all-features",
-            ],
+            Self::Test => &["test", "--locked", "--workspace", "--all-features"],
             Self::Doc => &[
                 "doc",
                 "--locked",
