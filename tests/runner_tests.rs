@@ -38,6 +38,32 @@ fn verify(root: &Path, suite: &str) -> Output {
         .expect("CLI")
 }
 
+/// Invokes a lockfile command without network access.
+fn verify_lock(root: &Path, operation: &str) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_rs-infra-verify"))
+        .args(["--project", root.to_str().expect("path"), "lock", operation])
+        .env("CARGO_NET_OFFLINE", "true")
+        .output()
+        .expect("CLI")
+}
+
+#[test]
+fn test_successful_operations_report_a_final_status() {
+    let root = tempdir().expect("fixture");
+    package(root.path(), "fixture", "", "");
+    assert!(
+        Command::new("cargo")
+            .args(["generate-lockfile", "--offline"])
+            .current_dir(root.path())
+            .status()
+            .expect("lockfile")
+            .success()
+    );
+    let result = verify_lock(root.path(), "check");
+    assert!(result.status.success(), "{result:?}");
+    assert!(String::from_utf8_lossy(&result.stdout).contains("lock check completed successfully."));
+}
+
 #[test]
 fn test_package_rejects_source_that_only_listing_would_accept() {
     let root = tempdir().expect("fixture");
@@ -53,6 +79,7 @@ fn test_package_rejects_source_that_only_listing_would_accept() {
         String::from_utf8_lossy(&result.stderr).contains("package must compile"),
         "{result:?}"
     );
+    assert!(String::from_utf8_lossy(&result.stderr).contains("run --suite package failed:"));
 }
 
 #[test]

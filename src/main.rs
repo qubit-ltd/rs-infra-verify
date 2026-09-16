@@ -10,6 +10,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
+use anyhow::anyhow;
 use clap::Parser;
 use clap::Subcommand;
 use clap::ValueEnum;
@@ -105,6 +106,16 @@ enum SuiteArg {
 /// selected library operation fails.
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    let operation = operation_name(&cli.command);
+    execute(cli)
+        .map(|()| {
+            println!("{operation} completed successfully.");
+        })
+        .map_err(|error| anyhow!("{operation} failed: {error:#}"))
+}
+
+/// Executes a parsed command without adding user-facing completion messages.
+fn execute(cli: Cli) -> Result<()> {
     let project = std::fs::canonicalize(cli.project)?;
     match cli.command {
         Command::Lock {
@@ -123,6 +134,41 @@ fn main() -> Result<()> {
                 run_suite(&project, suite.into())
             }
         }
+    }
+}
+
+/// Returns the operation label used in the final status message.
+fn operation_name(command: &Command) -> String {
+    match command {
+        Command::Lock {
+            command: LockCommand::Check,
+        } => "lock check".to_owned(),
+        Command::Lock {
+            command: LockCommand::Sync,
+        } => "lock sync".to_owned(),
+        Command::Run { suite } => format!("run --suite {}", suite_name(*suite)),
+    }
+}
+
+/// Returns the command-line spelling of a suite.
+fn suite_name(suite: SuiteArg) -> &'static str {
+    match suite {
+        SuiteArg::All => "all",
+        SuiteArg::Lock => "lock",
+        SuiteArg::Build => "build",
+        SuiteArg::Test => "test",
+        SuiteArg::Doc => "doc",
+        SuiteArg::Package => "package",
+        SuiteArg::Readme => "readme",
+        SuiteArg::Clippy => "clippy",
+        SuiteArg::FeatureMatrix => "feature-matrix",
+        SuiteArg::Cross => "cross",
+        SuiteArg::Platform => "platform",
+        SuiteArg::Miri => "miri",
+        SuiteArg::AddressSanitizer => "address-sanitizer",
+        SuiteArg::Loom => "loom",
+        SuiteArg::Fuzz => "fuzz",
+        SuiteArg::Audit => "audit",
     }
 }
 
