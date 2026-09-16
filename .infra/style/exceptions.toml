@@ -1,0 +1,6 @@
+format = 1
+
+[[exceptions]]
+rule = "aggregation-files"
+path = "src/lib.rs"
+reason = "The crate root exposes its public verification modules and compatibility exports."
