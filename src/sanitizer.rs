@@ -27,8 +27,9 @@ use crate::nightly::toolchain;
 /// # Returns
 ///
 /// Names of packages declaring `sanitizers = ["address"]` under modern
-/// `package.metadata.rs-infra` or legacy `package.metadata.rs-ci` configuration.
-/// Modern configuration takes precedence when both namespaces exist.
+/// `package.metadata.rs-infra` or legacy `package.metadata.rs-ci`
+/// configuration. Modern configuration takes precedence when both namespaces
+/// exist.
 ///
 /// # Errors
 ///
@@ -39,9 +40,7 @@ pub(crate) fn packages(project: &Path) -> Result<Vec<String>> {
     let members = metadata["workspace_members"]
         .as_array()
         .context("missing workspace members")?;
-    let all_packages = metadata["packages"]
-        .as_array()
-        .context("missing packages")?;
+    let all_packages = metadata["packages"].as_array().context("missing packages")?;
     let mut selected = Vec::new();
     for package in all_packages {
         if !members.contains(&package["id"]) {
@@ -134,7 +133,8 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
 }
 
 /// Maps runtime OS and architecture names to legacy-supported native targets.
-/// Returns `None` for unsupported combinations rather than using a Linux target.
+/// Returns `None` for unsupported combinations rather than using a Linux
+/// target.
 fn host_target(os: &str, arch: &str) -> Option<&'static str> {
     match (os, arch) {
         ("linux", "x86_64") => Some("x86_64-unknown-linux-gnu"),
@@ -145,7 +145,8 @@ fn host_target(os: &str, arch: &str) -> Option<&'static str> {
 }
 
 /// Appends address instrumentation to existing compiler or rustdoc flags.
-/// Returns flags retaining the caller's options with address instrumentation last.
+/// Returns flags retaining the caller's options with address instrumentation
+/// last.
 fn instrumented_flags(current: &str) -> String {
     if current.is_empty() {
         "-Zsanitizer=address".to_owned()
@@ -160,14 +161,8 @@ mod tests {
 
     #[test]
     fn test_host_target_matches_supported_legacy_platforms() {
-        assert_eq!(
-            host_target("linux", "x86_64"),
-            Some("x86_64-unknown-linux-gnu")
-        );
-        assert_eq!(
-            host_target("macos", "aarch64"),
-            Some("aarch64-apple-darwin")
-        );
+        assert_eq!(host_target("linux", "x86_64"), Some("x86_64-unknown-linux-gnu"));
+        assert_eq!(host_target("macos", "aarch64"), Some("aarch64-apple-darwin"));
         assert_eq!(host_target("macos", "x86_64"), Some("x86_64-apple-darwin"));
         assert_eq!(host_target("windows", "x86_64"), None);
         assert_eq!(host_target("linux", "aarch64"), None);

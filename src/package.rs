@@ -37,28 +37,19 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
     let members = metadata["workspace_members"]
         .as_array()
         .context("missing workspace members")?;
-    let packages = metadata["packages"]
-        .as_array()
-        .context("missing packages")?;
+    let packages = metadata["packages"].as_array().context("missing packages")?;
     let mut checked = 0;
     for package in packages {
-        if !members.contains(&package["id"])
-            || package["publish"].as_array().is_some_and(Vec::is_empty)
-        {
+        if !members.contains(&package["id"]) || package["publish"].as_array().is_some_and(Vec::is_empty) {
             continue;
         }
         let name = package["name"].as_str().context("missing package name")?;
         let mut patches = BTreeMap::new();
-        for dependency in package["dependencies"]
-            .as_array()
-            .context("missing dependencies")?
-        {
+        for dependency in package["dependencies"].as_array().context("missing dependencies")? {
             if let Some(path) = dependency["path"].as_str()
                 && Path::new(path).is_dir()
             {
-                let name = dependency["name"]
-                    .as_str()
-                    .context("missing dependency name")?;
+                let name = dependency["name"].as_str().context("missing dependency name")?;
                 patches.entry(name).or_insert(path);
             }
         }
@@ -68,11 +59,7 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
             // JSON string quoting is also valid TOML basic-string quoting here.
             command.args([
                 "--config",
-                &format!(
-                    "patch.crates-io.{}.path={}",
-                    to_string(name)?,
-                    to_string(path)?
-                ),
+                &format!("patch.crates-io.{}.path={}", to_string(name)?, to_string(path)?),
             ]);
         }
         let status = command

@@ -16,7 +16,8 @@ use anyhow::bail;
 
 use crate::metadata::workspace_metadata;
 
-/// Finds workspace members with a direct dependency named `loom` in Cargo metadata.
+/// Finds workspace members with a direct dependency named `loom` in Cargo
+/// metadata.
 ///
 /// # Parameters
 ///
@@ -35,33 +36,25 @@ pub(crate) fn packages(project: &Path) -> Result<Vec<String>> {
     let members = metadata["workspace_members"]
         .as_array()
         .context("missing workspace members")?;
-    let all_packages = metadata["packages"]
-        .as_array()
-        .context("missing packages")?;
+    let all_packages = metadata["packages"].as_array().context("missing packages")?;
     let mut selected = Vec::new();
     for package in all_packages {
         if !members.contains(&package["id"]) {
             continue;
         }
-        let dependencies = package["dependencies"]
-            .as_array()
-            .context("missing dependencies")?;
+        let dependencies = package["dependencies"].as_array().context("missing dependencies")?;
         if dependencies
             .iter()
             .any(|dependency| dependency["name"].as_str() == Some("loom"))
         {
-            selected.push(
-                package["name"]
-                    .as_str()
-                    .context("missing package name")?
-                    .to_owned(),
-            );
+            selected.push(package["name"].as_str().context("missing package name")?.to_owned());
         }
     }
     Ok(selected)
 }
 
-/// Lists and executes each selected package's release-mode tests matching `loom`.
+/// Lists and executes each selected package's release-mode tests matching
+/// `loom`.
 ///
 /// # Parameters
 ///
@@ -70,7 +63,8 @@ pub(crate) fn packages(project: &Path) -> Result<Vec<String>> {
 /// # Returns
 ///
 /// Success when all opted-in packages have at least one discovered model and
-/// every model passes. An unconfigured workspace is handled by the suite planner.
+/// every model passes. An unconfigured workspace is handled by the suite
+/// planner.
 ///
 /// # Errors
 ///
@@ -93,9 +87,7 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
             .filter(|line| line.trim_end().ends_with(": test"))
             .count();
         if count == 0 {
-            bail!(
-                "no Loom model tests were discovered for {name}; model test names must contain 'loom'"
-            );
+            bail!("no Loom model tests were discovered for {name}; model test names must contain 'loom'");
         }
         print!("{stdout}");
         println!("Running {count} Loom model test(s) for {name}");
@@ -123,16 +115,13 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
 /// A release/all-features test command with the legacy Loom configuration flag.
 fn cargo(project: &Path, name: &str) -> Command {
     let mut command = Command::new("cargo");
-    command
-        .current_dir(project)
-        .env("RUSTFLAGS", "--cfg loom")
-        .args([
-            "test",
-            "--locked",
-            "--package",
-            name,
-            "--release",
-            "--all-features",
-        ]);
+    command.current_dir(project).env("RUSTFLAGS", "--cfg loom").args([
+        "test",
+        "--locked",
+        "--package",
+        name,
+        "--release",
+        "--all-features",
+    ]);
     command
 }

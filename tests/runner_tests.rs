@@ -26,13 +26,7 @@ fn package(root: &Path, name: &str, extra: &str, source: &str) {
 /// Invokes the public CLI without network access.
 fn verify(root: &Path, suite: &str) -> Output {
     Command::new(env!("CARGO_BIN_EXE_rs-infra-verify"))
-        .args([
-            "--project",
-            root.to_str().expect("path"),
-            "run",
-            "--suite",
-            suite,
-        ])
+        .args(["--project", root.to_str().expect("path"), "run", "--suite", suite])
         .env("CARGO_NET_OFFLINE", "true")
         .output()
         .expect("CLI")
@@ -110,11 +104,7 @@ fn test_package_builds_publishable_members_with_local_dependencies() {
     );
     let result = verify(root.path(), "package");
     assert!(result.status.success(), "{result:?}");
-    assert!(
-        root.path()
-            .join("target/package/app-fixture-1.2.3.crate")
-            .is_file()
-    );
+    assert!(root.path().join("target/package/app-fixture-1.2.3.crate").is_file());
 }
 
 #[test]
@@ -138,11 +128,7 @@ fn test_readme_checks_all_workspace_names_and_both_languages() {
         error.contains("README.zh_CN.md:1") && error.contains("README.zh_CN.md:2"),
         "{error}"
     );
-    fs::write(
-        root.path().join("README.zh_CN.md"),
-        "demo = { version = \"1.2\" }\n",
-    )
-    .expect("correct README");
+    fs::write(root.path().join("README.zh_CN.md"), "demo = { version = \"1.2\" }\n").expect("correct README");
     assert!(verify(root.path(), "readme").status.success());
 }
 
@@ -163,13 +149,12 @@ fn test_package_skips_workspace_without_publishable_members() {
 #[test]
 fn test_readme_uses_inherited_versions_custom_paths_and_cross_member_snippets() {
     let root = tempdir().expect("fixture");
-    fs::write(root.path().join("Cargo.toml"), "[workspace]\nmembers=['first','second']\nresolver='3'\n[workspace.package]\nversion='2.4.9-beta.1'\n").expect("workspace");
-    package(
-        &root.path().join("first"),
-        "first",
-        "readme='../GUIDE.md'",
-        "",
-    );
+    fs::write(
+        root.path().join("Cargo.toml"),
+        "[workspace]\nmembers=['first','second']\nresolver='3'\n[workspace.package]\nversion='2.4.9-beta.1'\n",
+    )
+    .expect("workspace");
+    package(&root.path().join("first"), "first", "readme='../GUIDE.md'", "");
     package(&root.path().join("second"), "second", "", "");
     let path = root.path().join("second/Cargo.toml");
     fs::write(
@@ -186,17 +171,10 @@ fn test_readme_uses_inherited_versions_custom_paths_and_cross_member_snippets() 
     .expect("custom README");
     assert!(verify(root.path(), "readme").status.success());
     for invalid in ["2.4.9", "^2.4", "2.3", "2.4.9-beta.1"] {
-        fs::write(
-            root.path().join("GUIDE.md"),
-            format!("second = \"{invalid}\"\n"),
-        )
-        .expect("incorrect README");
+        fs::write(root.path().join("GUIDE.md"), format!("second = \"{invalid}\"\n")).expect("incorrect README");
         let result = verify(root.path(), "readme");
         assert!(!result.status.success());
-        assert!(
-            String::from_utf8_lossy(&result.stderr)
-                .contains("GUIDE.md:1: expected \"2.4\" for second")
-        );
+        assert!(String::from_utf8_lossy(&result.stderr).contains("GUIDE.md:1: expected \"2.4\" for second"));
     }
 }
 
@@ -207,16 +185,10 @@ fn test_readme_skips_absent_files_and_unrelated_declarations() {
     let absent = verify(root.path(), "readme");
     assert!(absent.status.success());
     assert!(String::from_utf8_lossy(&absent.stdout).contains("No README files"));
-    fs::write(
-        root.path().join("README.md"),
-        "demo-extra = \"9\"\n# demo = \"9\"\n",
-    )
-    .expect("README");
+    fs::write(root.path().join("README.md"), "demo-extra = \"9\"\n# demo = \"9\"\n").expect("README");
     let unrelated = verify(root.path(), "readme");
     assert!(unrelated.status.success());
-    assert!(
-        String::from_utf8_lossy(&unrelated.stdout).contains("No README dependency declarations")
-    );
+    assert!(String::from_utf8_lossy(&unrelated.stdout).contains("No README dependency declarations"));
 }
 
 #[test]
@@ -286,10 +258,7 @@ fn test_loom_zero_models_and_failed_models_are_errors() {
         loom_workspace(root.path(), source);
         let result = verify(root.path(), "loom");
         assert!(!result.status.success(), "{result:?}");
-        assert!(
-            String::from_utf8_lossy(&result.stderr).contains("model"),
-            "{result:?}"
-        );
+        assert!(String::from_utf8_lossy(&result.stderr).contains("model"), "{result:?}");
     }
 }
 

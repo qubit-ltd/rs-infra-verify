@@ -14,7 +14,8 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 
-/// Returns the configured Cargo `+toolchain` argument, defaulting to `+nightly`.
+/// Returns the configured Cargo `+toolchain` argument, defaulting to
+/// `+nightly`.
 ///
 /// # Errors
 ///
@@ -26,13 +27,8 @@ pub(crate) fn toolchain() -> Result<String> {
         Err(VarError::NotPresent) => "nightly".to_owned(),
         Err(error) => return Err(error).context("invalid RS_INFRA_NIGHTLY_TOOLCHAIN"),
     };
-    if selected.is_empty()
-        || selected.starts_with(['+', '-'])
-        || selected.chars().any(char::is_whitespace)
-    {
-        bail!(
-            "RS_INFRA_NIGHTLY_TOOLCHAIN must be a nonempty toolchain name without a leading '+' or '-'"
-        );
+    if selected.is_empty() || selected.starts_with(['+', '-']) || selected.chars().any(char::is_whitespace) {
+        bail!("RS_INFRA_NIGHTLY_TOOLCHAIN must be a nonempty toolchain name without a leading '+' or '-'");
     }
     Ok(format!("+{selected}"))
 }

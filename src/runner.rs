@@ -33,11 +33,8 @@ use crate::plan;
 ///
 /// This function executes Cargo and prints a success message on completion.
 pub fn lock_check(project: &Path) -> Result<()> {
-    run_quiet(
-        project,
-        &["metadata", "--no-deps", "--locked", "--format-version", "1"],
-    )
-    .context("Cargo.lock is missing or stale; run rs-infra-verify lock sync")?;
+    run_quiet(project, &["metadata", "--no-deps", "--locked", "--format-version", "1"])
+        .context("Cargo.lock is missing or stale; run rs-infra-verify lock sync")?;
     println!("Cargo.lock is current.");
     Ok(())
 }
@@ -261,10 +258,7 @@ mod tests {
             miri_flags("-Zmiri-backtrace=full"),
             "-Zmiri-backtrace=full -Zmiri-disable-isolation"
         );
-        assert_eq!(
-            miri_flags("-Zmiri-disable-isolation"),
-            "-Zmiri-disable-isolation"
-        );
+        assert_eq!(miri_flags("-Zmiri-disable-isolation"), "-Zmiri-disable-isolation");
     }
 
     #[test]

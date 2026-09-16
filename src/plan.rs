@@ -46,11 +46,7 @@ pub fn plan(project: &Path, selected: Option<Suite>) -> Result<Vec<PlanEntry>> {
             } else {
                 PlanStatus::Skipped(format!("not configured in {}", project.display()))
             };
-            let mut command: Vec<String> = suite
-                .command()
-                .iter()
-                .map(|arg| (*arg).to_owned())
-                .collect();
+            let mut command: Vec<String> = suite.command().iter().map(|arg| (*arg).to_owned()).collect();
             if suite == Suite::Fuzz && matches!(status, PlanStatus::Ready) {
                 match FuzzMode::from_env()? {
                     FuzzMode::Disabled => {
@@ -66,11 +62,7 @@ pub fn plan(project: &Path, selected: Option<Suite>) -> Result<Vec<PlanEntry>> {
             {
                 command.insert(0, toolchain()?);
             }
-            Ok(PlanEntry {
-                suite,
-                command,
-                status,
-            })
+            Ok(PlanEntry { suite, command, status })
         })
         .collect()
 }
@@ -91,8 +83,8 @@ pub fn plan(project: &Path, selected: Option<Suite>) -> Result<Vec<PlanEntry>> {
 /// Returns an error when the project's `Cargo.toml` cannot be read.
 fn is_configured(project: &Path, suite: Suite) -> Result<bool> {
     let manifest = project.join("Cargo.toml");
-    let _manifest_text = std::fs::read_to_string(&manifest)
-        .with_context(|| format!("failed to read {}", manifest.display()))?;
+    let _manifest_text =
+        std::fs::read_to_string(&manifest).with_context(|| format!("failed to read {}", manifest.display()))?;
     Ok(match suite {
         Suite::Lock
         | Suite::Build
@@ -103,8 +95,7 @@ fn is_configured(project: &Path, suite: Suite) -> Result<bool> {
         | Suite::Clippy
         | Suite::Audit => true,
         Suite::FeatureMatrix => {
-            project.join(".infra/ci/cargo-matrix.json").is_file()
-                || project.join(".rs-ci-cargo-matrix.json").is_file()
+            project.join(".infra/ci/cargo-matrix.json").is_file() || project.join(".rs-ci-cargo-matrix.json").is_file()
         }
         Suite::Cross => {
             project.join(".infra/ci/cross.toml").is_file()
@@ -112,8 +103,7 @@ fn is_configured(project: &Path, suite: Suite) -> Result<bool> {
                 || project.join(".rs-ci-cross.toml").is_file()
         }
         Suite::Platform => {
-            project.join(".infra/ci/platform.toml").is_file()
-                || project.join(".rs-ci-platform.toml").is_file()
+            project.join(".infra/ci/platform.toml").is_file() || project.join(".rs-ci-platform.toml").is_file()
         }
         Suite::Miri => !miri_packages(project)?.is_empty(),
         Suite::AddressSanitizer => !crate::sanitizer::packages(project)?.is_empty(),

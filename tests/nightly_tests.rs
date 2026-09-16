@@ -72,19 +72,11 @@ fn cli(root: &Path, suite: &str) -> Command {
     paths.extend(env::split_paths(&env::var_os("PATH").expect("PATH")));
     let mut command = Command::new(env!("CARGO_BIN_EXE_rs-infra-verify"));
     command
-        .args([
-            "--project",
-            root.to_str().expect("path"),
-            "run",
-            "--suite",
-            suite,
-        ])
+        .args(["--project", root.to_str().expect("path"), "run", "--suite", suite])
         .env("PATH", env::join_paths(paths).expect("PATH"))
         .env(
             "REAL_CARGO",
-            String::from_utf8(real_cargo.stdout)
-                .expect("cargo path")
-                .trim(),
+            String::from_utf8(real_cargo.stdout).expect("cargo path").trim(),
         )
         .env("COMMAND_LOG", root.join("commands.log"))
         .env_remove("RS_INFRA_NIGHTLY_TOOLCHAIN")
@@ -134,11 +126,7 @@ fn test_fuzz_runs_every_target_with_limits_and_artifact_directories() {
         let result = command.output().expect("fuzz suite");
         assert!(result.status.success(), "{result:?}");
         let log = fs::read_to_string(root.path().join("commands.log")).expect("commands");
-        let nightly = if custom {
-            "nightly-2026-06-05"
-        } else {
-            "nightly"
-        };
+        let nightly = if custom { "nightly-2026-06-05" } else { "nightly" };
         for target in ["alpha", "beta"] {
             let run = log
                 .lines()
@@ -150,11 +138,7 @@ fn test_fuzz_runs_every_target_with_limits_and_artifact_directories() {
             } else {
                 "-max_total_time=10"
             }));
-            assert!(run.contains(if custom {
-                "-max_len=128"
-            } else {
-                "-max_len=4096"
-            }));
+            assert!(run.contains(if custom { "-max_len=128" } else { "-max_len=4096" }));
             assert!(run.contains(&format!(
                 "-artifact_prefix={}/fuzz/artifacts/{target}/",
                 root.path().display()
@@ -167,16 +151,9 @@ fn test_fuzz_runs_every_target_with_limits_and_artifact_directories() {
 #[test]
 fn test_fuzz_failures_preserve_artifacts_and_propagate() {
     let root = fixture();
-    let result = cli(root.path(), "fuzz")
-        .env("FAIL_RUN", "1")
-        .output()
-        .expect("fuzz");
+    let result = cli(root.path(), "fuzz").env("FAIL_RUN", "1").output().expect("fuzz");
     assert!(!result.status.success());
-    assert!(
-        root.path()
-            .join("fuzz/artifacts/alpha/crash-fixture")
-            .is_file()
-    );
+    assert!(root.path().join("fuzz/artifacts/alpha/crash-fixture").is_file());
     assert!(String::from_utf8_lossy(&result.stderr).contains("alpha"));
 }
 
@@ -190,10 +167,7 @@ fn test_fuzz_rejects_empty_targets_and_invalid_limits() {
         ("FAIL_LIST", "1"),
     ] {
         let root = fixture();
-        let result = cli(root.path(), "fuzz")
-            .env(name, value)
-            .output()
-            .expect("fuzz");
+        let result = cli(root.path(), "fuzz").env(name, value).output().expect("fuzz");
         assert!(!result.status.success(), "{name}={value}: {result:?}");
     }
 }
@@ -211,11 +185,7 @@ fn test_sanitizer_instruments_only_opted_in_workspace_packages() {
     for name in ["enabled", "disabled"] {
         fs::create_dir_all(root.path().join(name).join("src")).expect("source dir");
         fs::write(root.path().join(name).join("src/lib.rs"), "").expect("source");
-        let setting = if name == "enabled" {
-            "['address']"
-        } else {
-            "[]"
-        };
+        let setting = if name == "enabled" { "['address']" } else { "[]" };
         fs::write(root.path().join(name).join("Cargo.toml"), format!("[package]\nname='{name}'\nversion='0.1.0'\nedition='2024'\n[package.metadata.rs-ci]\nsanitizers={setting}\n")).expect("member");
     }
     let result = cli(root.path(), "address-sanitizer")
@@ -238,10 +208,7 @@ fn test_sanitizer_instruments_only_opted_in_workspace_packages() {
         flags.contains("RUSTFLAGS=--cfg existing -Zsanitizer=address"),
         "{flags}"
     );
-    assert!(
-        flags.contains("RUSTDOCFLAGS=--cfg docs -Zsanitizer=address"),
-        "{flags}"
-    );
+    assert!(flags.contains("RUSTDOCFLAGS=--cfg docs -Zsanitizer=address"), "{flags}");
 }
 
 #[test]
@@ -255,9 +222,7 @@ fn test_sanitizer_rejects_malformed_package_configuration() {
             content.replace("sanitizers=['address']", &format!("sanitizers={value}")),
         )
         .expect("invalid config");
-        let result = cli(root.path(), "address-sanitizer")
-            .output()
-            .expect("suite");
+        let result = cli(root.path(), "address-sanitizer").output().expect("suite");
         assert!(!result.status.success(), "{value}: {result:?}");
         assert!(String::from_utf8_lossy(&result.stderr).contains("sanitizers"));
     }
@@ -270,15 +235,10 @@ fn test_sanitizer_ignores_unrelated_manifest_text() {
     let content = fs::read_to_string(&path).expect("manifest");
     fs::write(
         &path,
-        content.replace(
-            "sanitizers=['address']",
-            "sanitizers=[] # address is not enabled",
-        ),
+        content.replace("sanitizers=['address']", "sanitizers=[] # address is not enabled"),
     )
     .expect("disabled config");
-    let result = cli(root.path(), "address-sanitizer")
-        .output()
-        .expect("suite");
+    let result = cli(root.path(), "address-sanitizer").output().expect("suite");
     assert!(result.status.success(), "{result:?}");
     assert!(String::from_utf8_lossy(&result.stdout).contains("skipped"));
     let log = fs::read_to_string(root.path().join("commands.log")).expect("commands");
@@ -313,15 +273,9 @@ fn test_fuzz_build_only_builds_every_target_without_smoke_side_effects() {
     assert!(result.status.success(), "{result:?}");
     let log = fs::read_to_string(root.path().join("commands.log")).expect("commands");
     for target in ["alpha", "beta"] {
-        assert!(
-            log.contains(&format!("+nightly fuzz build {target}")),
-            "{log}"
-        );
+        assert!(log.contains(&format!("+nightly fuzz build {target}")), "{log}");
     }
-    assert!(
-        !log.contains("fuzz run") && !log.contains(" install "),
-        "{log}"
-    );
+    assert!(!log.contains("fuzz run") && !log.contains(" install "), "{log}");
     assert!(!root.path().join("fuzz/artifacts").exists());
 }
 

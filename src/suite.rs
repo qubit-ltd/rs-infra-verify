@@ -83,38 +83,21 @@ impl Suite {
     /// # Returns
     ///
     /// The base program arguments used to execute this suite. Package arguments
-    /// are expanded per publishable member at runtime. README checks run in Rust
-    /// and return an empty argument list. Otherwise the first argument is the
-    /// Cargo subcommand unless the suite uses an external program. Nightly suite
-    /// plans prepend the configured toolchain; fuzz expands targets at runtime.
+    /// are expanded per publishable member at runtime. README checks run in
+    /// Rust and return an empty argument list. Otherwise the first argument
+    /// is the Cargo subcommand unless the suite uses an external program.
+    /// Nightly suite plans prepend the configured toolchain; fuzz expands
+    /// targets at runtime.
     #[must_use]
     pub const fn command(self) -> &'static [&'static str] {
         match self {
             Self::Lock => &["metadata", "--no-deps", "--locked", "--format-version", "1"],
-            Self::Build => &[
-                "build",
-                "--locked",
-                "--workspace",
-                "--all-targets",
-                "--all-features",
-            ],
+            Self::Build => &["build", "--locked", "--workspace", "--all-targets", "--all-features"],
             Self::Test => &["test", "--locked", "--workspace", "--all-features"],
-            Self::Doc => &[
-                "doc",
-                "--locked",
-                "--workspace",
-                "--all-features",
-                "--no-deps",
-            ],
+            Self::Doc => &["doc", "--locked", "--workspace", "--all-features", "--no-deps"],
             Self::Package => &["package", "--allow-dirty"],
             Self::Readme => &[],
-            Self::Clippy => &[
-                "clippy",
-                "--locked",
-                "--workspace",
-                "--all-targets",
-                "--all-features",
-            ],
+            Self::Clippy => &["clippy", "--locked", "--workspace", "--all-targets", "--all-features"],
             Self::FeatureMatrix => &["check", "--locked", "--workspace", "--all-features"],
             Self::Cross => &["cross", "test", "--locked", "--workspace", "--all-features"],
             Self::Platform => &["test", "--locked", "--workspace", "--all-features"],

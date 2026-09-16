@@ -127,9 +127,10 @@ fn parse_miri_test_args(metadata: &Value, package_id: &str) -> Result<Vec<String
         .with_context(|| format!("package {package_id}: miri-test-args must be an array"))?
         .iter()
         .map(|argument| {
-            argument.as_str().map(str::to_owned).with_context(|| {
-                format!("package {package_id}: miri-test-args entries must be strings")
-            })
+            argument
+                .as_str()
+                .map(str::to_owned)
+                .with_context(|| format!("package {package_id}: miri-test-args entries must be strings"))
         })
         .collect()
 }
@@ -155,13 +156,9 @@ pub(crate) fn workspace_metadata(project: &Path) -> Result<Value> {
         .output()
         .context("failed to start cargo metadata")?;
     if !output.status.success() {
-        bail!(
-            "cargo metadata failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+        bail!("cargo metadata failed: {}", String::from_utf8_lossy(&output.stderr));
     }
-    let metadata: Value =
-        serde_json::from_slice(&output.stdout).context("cargo metadata returned invalid JSON")?;
+    let metadata: Value = serde_json::from_slice(&output.stdout).context("cargo metadata returned invalid JSON")?;
     Ok(metadata)
 }
 
@@ -194,15 +191,11 @@ mod tests {
             ]
         });
 
-        let packages = miri_packages_from_metadata(&metadata)
-            .expect("configured workspace packages should parse");
+        let packages = miri_packages_from_metadata(&metadata).expect("configured workspace packages should parse");
 
         assert_eq!(packages.len(), 1);
         assert_eq!(packages[0].name, "demo");
-        assert_eq!(
-            packages[0].test_args,
-            ["--test", "tests", "module::critical_case"]
-        );
+        assert_eq!(packages[0].test_args, ["--test", "tests", "module::critical_case"]);
     }
 
     #[test]
@@ -218,13 +211,8 @@ mod tests {
             }]
         });
 
-        let error = miri_packages_from_metadata(&metadata)
-            .expect_err("non-string test arguments must be rejected");
+        let error = miri_packages_from_metadata(&metadata).expect_err("non-string test arguments must be rejected");
 
-        assert!(
-            error
-                .to_string()
-                .contains("miri-test-args entries must be strings")
-        );
+        assert!(error.to_string().contains("miri-test-args entries must be strings"));
     }
 }

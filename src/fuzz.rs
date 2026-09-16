@@ -5,7 +5,8 @@
 //
 //    Licensed under the Apache License, Version 2.0.
 // =============================================================================
-//! Executes cargo-fuzz build or smoke checks, or explicitly skips disabled checks.
+//! Executes cargo-fuzz build or smoke checks, or explicitly skips disabled
+//! checks.
 
 use std::env;
 use std::env::VarError;
@@ -28,7 +29,8 @@ use crate::nightly::toolchain;
 ///
 /// # Returns
 ///
-/// Success when disabled, or when every target builds/runs in the selected mode.
+/// Success when disabled, or when every target builds/runs in the selected
+/// mode.
 ///
 /// # Errors
 ///
@@ -57,18 +59,10 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
         .output()
         .context("failed to start cargo fuzz list")?;
     if !output.status.success() {
-        bail!(
-            "cargo fuzz list failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+        bail!("cargo fuzz list failed: {}", String::from_utf8_lossy(&output.stderr));
     }
-    let listed =
-        String::from_utf8(output.stdout).context("cargo fuzz list returned invalid UTF-8")?;
-    let targets: Vec<_> = listed
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .collect();
+    let listed = String::from_utf8(output.stdout).context("cargo fuzz list returned invalid UTF-8")?;
+    let targets: Vec<_> = listed.lines().map(str::trim).filter(|line| !line.is_empty()).collect();
     if targets.is_empty() {
         bail!("cargo-fuzz is configured but reported no fuzz targets");
     }
@@ -95,8 +89,7 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
             continue;
         };
         let artifacts = project.join("fuzz/artifacts").join(target);
-        fs::create_dir_all(&artifacts)
-            .with_context(|| format!("cannot create {}", artifacts.display()))?;
+        fs::create_dir_all(&artifacts).with_context(|| format!("cannot create {}", artifacts.display()))?;
         println!("Running fuzz target {target} for {seconds}s (max_len={max_len})");
         // cargo fuzz run builds the target before invoking libFuzzer.
         let status = Command::new("cargo")
@@ -119,10 +112,7 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
     } else {
         "smoke"
     };
-    println!(
-        "Fuzz {label} checks passed for {} target(s).",
-        targets.len()
-    );
+    println!("Fuzz {label} checks passed for {} target(s).", targets.len());
     Ok(())
 }
 
@@ -150,10 +140,5 @@ fn positive_setting(name: &str, default: u32) -> Result<u32> {
         .parse::<u32>()
         .ok()
         .filter(|value| *value > 0 && *value <= i32::MAX as u32);
-    parsed.with_context(|| {
-        format!(
-            "{name} must be a positive integer no greater than {}",
-            i32::MAX
-        )
-    })
+    parsed.with_context(|| format!("{name} must be a positive integer no greater than {}", i32::MAX))
 }

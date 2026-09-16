@@ -49,13 +49,7 @@ mod tests {
         assert_eq!(Suite::all().len(), 15);
         assert_eq!(
             Suite::Clippy.command(),
-            &[
-                "clippy",
-                "--locked",
-                "--workspace",
-                "--all-targets",
-                "--all-features"
-            ]
+            &["clippy", "--locked", "--workspace", "--all-targets", "--all-features"]
         );
         assert_eq!(
             Suite::Cross.command(),
@@ -110,7 +104,11 @@ mod tests {
     #[test]
     fn configured_capability_is_not_silently_skipped() {
         let project = tempdir().expect("temp project");
-        fs::write(project.path().join("Cargo.toml"), "[package]\nname='fixture'\nversion='0.1.0'\nedition='2024'\n\n[package.metadata.rs-infra]\nmiri=true\n").expect("manifest");
+        fs::write(
+            project.path().join("Cargo.toml"),
+            "[package]\nname='fixture'\nversion='0.1.0'\nedition='2024'\n\n[package.metadata.rs-infra]\nmiri=true\n",
+        )
+        .expect("manifest");
         fs::create_dir(project.path().join("src")).expect("source directory");
         fs::write(project.path().join("src/lib.rs"), "").expect("library source");
 
