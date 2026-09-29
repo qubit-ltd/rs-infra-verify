@@ -125,6 +125,12 @@ fn test_fuzz_runs_every_target_with_limits_and_artifact_directories() {
         }
         let result = command.output().expect("fuzz suite");
         assert!(result.status.success(), "{result:?}");
+        let output = String::from_utf8_lossy(&result.stdout);
+        assert!(output.contains("✅ Fuzz "), "{output}");
+        assert!(
+            output.contains("✅ run --suite fuzz completed successfully."),
+            "{output}"
+        );
         let log = fs::read_to_string(root.path().join("commands.log")).expect("commands");
         let nightly = if custom { "nightly-2026-06-05" } else { "nightly" };
         for target in ["alpha", "beta"] {
@@ -153,6 +159,9 @@ fn test_fuzz_failures_preserve_artifacts_and_propagate() {
     let root = fixture();
     let result = cli(root.path(), "fuzz").env("FAIL_RUN", "1").output().expect("fuzz");
     assert!(!result.status.success());
+    let error = String::from_utf8_lossy(&result.stderr);
+    let conclusion = error.lines().last().expect("failure conclusion");
+    assert!(conclusion.starts_with("❌ run --suite fuzz failed:"), "{error}");
     assert!(root.path().join("fuzz/artifacts/alpha/crash-fixture").is_file());
     assert!(String::from_utf8_lossy(&result.stderr).contains("alpha"));
 }

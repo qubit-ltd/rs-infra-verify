@@ -72,9 +72,9 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
         checked += 1;
     }
     if checked == 0 {
-        println!("No publishable workspace packages found; skipping Cargo package verification.");
+        println!("✅ No publishable workspace packages found; skipping Cargo package verification.");
     } else {
-        println!("Cargo package verification passed for {checked} workspace package(s).");
+        println!("✅ Cargo package verification passed for {checked} workspace package(s).");
     }
     Ok(())
 }

@@ -99,7 +99,7 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
             bail!("Loom model checks failed for package {name}");
         }
     }
-    println!("Loom model checks passed.");
+    println!("✅ Loom model checks passed.");
     Ok(())
 }
 

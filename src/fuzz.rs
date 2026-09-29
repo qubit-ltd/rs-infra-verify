@@ -112,7 +112,7 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
     } else {
         "smoke"
     };
-    println!("Fuzz {label} checks passed for {} target(s).", targets.len());
+    println!("✅ Fuzz {label} checks passed for {} target(s).", targets.len());
     Ok(())
 }
 

@@ -55,7 +55,7 @@ fn test_successful_operations_report_a_final_status() {
     );
     let result = verify_lock(root.path(), "check");
     assert!(result.status.success(), "{result:?}");
-    assert!(String::from_utf8_lossy(&result.stdout).contains("lock check completed successfully."));
+    assert!(String::from_utf8_lossy(&result.stdout).contains("✅ lock check completed successfully."));
 }
 
 #[test]
@@ -73,7 +73,9 @@ fn test_package_rejects_source_that_only_listing_would_accept() {
         String::from_utf8_lossy(&result.stderr).contains("package must compile"),
         "{result:?}"
     );
-    assert!(String::from_utf8_lossy(&result.stderr).contains("run --suite package failed:"));
+    let error = String::from_utf8_lossy(&result.stderr);
+    let conclusion = error.lines().last().expect("failure conclusion");
+    assert!(conclusion.starts_with("❌ run --suite package failed:"), "{error}");
 }
 
 #[test]
@@ -104,6 +106,11 @@ fn test_package_builds_publishable_members_with_local_dependencies() {
     );
     let result = verify(root.path(), "package");
     assert!(result.status.success(), "{result:?}");
+    assert!(
+        String::from_utf8_lossy(&result.stdout)
+            .contains("✅ Cargo package verification passed for 1 workspace package(s)."),
+        "{result:?}"
+    );
     assert!(root.path().join("target/package/app-fixture-1.2.3.crate").is_file());
 }
 
@@ -143,7 +150,8 @@ fn test_package_skips_workspace_without_publishable_members() {
     );
     let result = verify(root.path(), "package");
     assert!(result.status.success(), "{result:?}");
-    assert!(String::from_utf8_lossy(&result.stdout).contains("No publishable workspace packages"));
+    let output = String::from_utf8_lossy(&result.stdout);
+    assert!(output.contains("✅ No publishable workspace packages"), "{output}");
 }
 
 #[test]
@@ -243,6 +251,11 @@ fn test_loom_discovers_workspace_dependencies_and_runs_release_models() {
     let output = String::from_utf8_lossy(&result.stdout);
     assert!(
         output.contains("test_loom_model") && output.contains("running 1 test"),
+        "{output}"
+    );
+    assert!(output.contains("✅ Loom model checks passed."), "{output}");
+    assert!(
+        output.contains("✅ run --suite loom completed successfully."),
         "{output}"
     );
     assert!(root.path().join("target/release").is_dir());

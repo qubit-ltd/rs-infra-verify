@@ -10,7 +10,6 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use anyhow::anyhow;
 use clap::Parser;
 use clap::Subcommand;
 use clap::ValueEnum;
@@ -104,14 +103,16 @@ enum SuiteArg {
 ///
 /// Returns an error when the project path cannot be canonicalized or the
 /// selected library operation fails.
-fn main() -> Result<()> {
+fn main() {
     let cli = Cli::parse();
     let operation = operation_name(&cli.command);
-    execute(cli)
-        .map(|()| {
-            println!("{operation} completed successfully.");
-        })
-        .map_err(|error| anyhow!("{operation} failed: {error:#}"))
+    match execute(cli) {
+        Ok(()) => println!("✅ {operation} completed successfully."),
+        Err(error) => {
+            eprintln!("❌ {operation} failed: {error:#}");
+            std::process::exit(1);
+        }
+    }
 }
 
 /// Executes a parsed command without adding user-facing completion messages.
