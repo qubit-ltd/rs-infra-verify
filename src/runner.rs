@@ -150,6 +150,7 @@ fn run_miri(project: &Path, command: &[String]) -> Result<()> {
 ///
 /// The existing `MIRIFLAGS` followed by `-Zmiri-disable-isolation` unless that
 /// flag is already present.
+#[must_use]
 fn miri_flags(current: &str) -> String {
     if current
         .split_whitespace()
@@ -172,6 +173,7 @@ fn miri_flags(current: &str) -> String {
 /// # Returns
 ///
 /// `true` when a test harness reports a positive test count.
+#[must_use]
 fn output_reports_tests(output: &str) -> bool {
     output.lines().any(|line| {
         let Some(count) = line.strip_prefix("running ") else {

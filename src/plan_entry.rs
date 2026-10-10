@@ -25,11 +25,13 @@ use crate::plan_status::PlanStatus;
 /// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct PlanEntry {
-    /// The suite being planned.
+    /// Identifies the verification suite whose command is described by this
+    /// entry.
     pub suite: Suite,
-    /// Owned command and arguments associated with the suite.
+    /// The executable and arguments needed to run the suite, in invocation
+    /// order.
     pub command: Vec<String>,
-    /// Whether the suite is ready or was skipped.
+    /// Indicates whether the suite can run or records why planning skipped it.
     pub status: PlanStatus,
 }
 

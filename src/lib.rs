@@ -41,12 +41,12 @@ mod tests {
     use crate::suite::Suite;
 
     #[test]
-    fn suite_enum_is_available_to_callers() {
+    fn test_suite_enum_is_available_to_callers() {
         assert!(matches!(Suite::Test, Suite::Test));
     }
 
     #[test]
-    fn every_legacy_capability_has_a_stable_suite_command() {
+    fn test_every_legacy_capability_has_a_stable_suite_command() {
         assert_eq!(Suite::all().len(), 15);
         assert_eq!(
             Suite::Clippy.command(),
@@ -83,7 +83,7 @@ mod tests {
     }
 
     #[test]
-    fn unconfigured_optional_capabilities_are_explicitly_skipped() {
+    fn test_unconfigured_optional_capabilities_are_explicitly_skipped() {
         let project = tempdir().expect("temp project");
         fs::write(
             project.path().join("Cargo.toml"),
@@ -93,7 +93,11 @@ mod tests {
         fs::create_dir(project.path().join("src")).expect("source directory");
         fs::write(project.path().join("src/lib.rs"), "").expect("library source");
         fs::create_dir_all(project.path().join(".infra/tools")).expect("defaults directory");
-        fs::write(project.path().join(".infra/tools/defaults.toml"), "build_toolchain='1.94.0'\nnightly_toolchain='nightly-2026-06-05'\n").expect("defaults");
+        fs::write(
+            project.path().join(".infra/tools/defaults.toml"),
+            "build_toolchain='1.94.0'\nnightly_toolchain='nightly-2026-06-05'\n",
+        )
+        .expect("defaults");
 
         let plan = plan(project.path(), None).expect("plan");
         let miri = plan
@@ -105,7 +109,7 @@ mod tests {
     }
 
     #[test]
-    fn configured_capability_is_not_silently_skipped() {
+    fn test_configured_capability_is_not_silently_skipped() {
         let project = tempdir().expect("temp project");
         fs::write(
             project.path().join("Cargo.toml"),
@@ -115,7 +119,11 @@ mod tests {
         fs::create_dir(project.path().join("src")).expect("source directory");
         fs::write(project.path().join("src/lib.rs"), "").expect("library source");
         fs::create_dir_all(project.path().join(".infra/tools")).expect("defaults directory");
-        fs::write(project.path().join(".infra/tools/defaults.toml"), "build_toolchain='1.94.0'\nnightly_toolchain='nightly-2026-06-05'\n").expect("defaults");
+        fs::write(
+            project.path().join(".infra/tools/defaults.toml"),
+            "build_toolchain='1.94.0'\nnightly_toolchain='nightly-2026-06-05'\n",
+        )
+        .expect("defaults");
 
         let plan = plan(project.path(), Some(Suite::Miri)).expect("plan");
         assert!(matches!(plan[0].status, PlanStatus::Ready));

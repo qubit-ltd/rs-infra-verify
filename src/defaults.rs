@@ -22,6 +22,10 @@ use anyhow::bail;
 /// * `project` - Project root containing the installed defaults.
 /// * `field` - Toolchain field required by the caller.
 ///
+/// # Returns
+///
+/// The configured toolchain name as an owned string.
+///
 /// # Errors
 ///
 /// Returns a path-specific error if no defaults file exists, its TOML is
@@ -37,21 +41,15 @@ pub(crate) fn toolchain(project: &Path, field: &str) -> Result<String> {
             return Err(error).with_context(|| format!("cannot inspect {}", path.display()));
         }
     }
-    let source =
-        fs::read_to_string(&path).with_context(|| format!("cannot read {}", path.display()))?;
+    let source = fs::read_to_string(&path).with_context(|| format!("cannot read {}", path.display()))?;
     let table: toml::Value = source
         .parse()
         .with_context(|| format!("invalid TOML in {}", path.display()))?;
     let value = table
         .get(field)
         .and_then(toml::Value::as_str)
-        .with_context(|| {
-            format!(
-                "{}: {field} must be a nonempty toolchain name",
-                path.display()
-            )
-        })?;
-    if value.is_empty() || value.starts_with(['+', '-']) || value.chars().any(char::is_whitespace) {
+        .with_context(|| format!("{}: {field} must be a nonempty toolchain name", path.display()))?;
+    if value.is_empty() || value.starts_with('+') || value.starts_with('-') || value.chars().any(char::is_whitespace) {
         bail!(
             "{}: {field} must be a nonempty toolchain name without whitespace or leading '+'/'-'",
             path.display()

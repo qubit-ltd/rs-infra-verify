@@ -29,9 +29,7 @@ use anyhow::bail;
 pub(crate) fn toolchain(project: &Path) -> Result<String> {
     let selected = match env::var("RS_INFRA_NIGHTLY_TOOLCHAIN") {
         Ok(value) if !value.is_empty() => value,
-        Ok(_) | Err(VarError::NotPresent) => {
-            crate::defaults::toolchain(project, "nightly_toolchain")?
-        }
+        Ok(_) | Err(VarError::NotPresent) => crate::defaults::toolchain(project, "nightly_toolchain")?,
         Err(error) => return Err(error).context("invalid RS_INFRA_NIGHTLY_TOOLCHAIN"),
     };
     if selected.is_empty() || selected.starts_with(['+', '-']) || selected.chars().any(char::is_whitespace) {

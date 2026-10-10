@@ -95,14 +95,9 @@ enum SuiteArg {
 
 /// Parses command-line arguments and runs the selected operation.
 ///
-/// # Returns
-///
-/// Returns successfully when the selected operation completes.
-///
-/// # Errors
-///
-/// Returns an error when the project path cannot be canonicalized or the
-/// selected library operation fails.
+/// Prints a completion message when the operation succeeds. If the project path
+/// cannot be canonicalized or the selected library operation fails, prints the
+/// error and exits the process with status code 1.
 fn main() {
     let cli = Cli::parse();
     let operation = operation_name(&cli.command);

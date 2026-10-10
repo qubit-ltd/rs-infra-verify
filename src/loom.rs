@@ -126,13 +126,6 @@ fn cargo(project: &Path, name: &str) -> Result<Command> {
             "RUSTUP_TOOLCHAIN",
             crate::defaults::toolchain(project, "build_toolchain")?,
         )
-        .args([
-            "test",
-            "--locked",
-            "--package",
-            name,
-            "--release",
-            "--all-features",
-        ]);
+        .args(["test", "--locked", "--package", name, "--release", "--all-features"]);
     Ok(command)
 }

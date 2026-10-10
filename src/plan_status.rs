@@ -18,6 +18,7 @@
 /// assert!(matches!(status, PlanStatus::Skipped(reason) if reason == "not configured"));
 /// ```
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[must_use]
 pub enum PlanStatus {
     /// The suite has the configuration required to run.
     Ready,
