@@ -9,22 +9,29 @@
 
 use std::env;
 use std::env::VarError;
+use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 
-/// Returns the configured Cargo `+toolchain` argument, defaulting to
-/// `+nightly`.
+/// Returns the configured Cargo `+toolchain` argument, with a nonempty
+/// environment override taking precedence over project defaults.
+///
+/// # Parameters
+///
+/// * `project` - Project root containing the installed shared defaults.
 ///
 /// # Errors
 ///
-/// Returns an error if `RS_INFRA_NIGHTLY_TOOLCHAIN` is non-Unicode, empty,
-/// contains whitespace, or starts with an option/toolchain prefix.
-pub(crate) fn toolchain() -> Result<String> {
+/// Returns an error if the environment value is non-Unicode, the selected
+/// toolchain is invalid, or the project defaults cannot be read.
+pub(crate) fn toolchain(project: &Path) -> Result<String> {
     let selected = match env::var("RS_INFRA_NIGHTLY_TOOLCHAIN") {
-        Ok(value) => value,
-        Err(VarError::NotPresent) => "nightly".to_owned(),
+        Ok(value) if !value.is_empty() => value,
+        Ok(_) | Err(VarError::NotPresent) => {
+            crate::defaults::toolchain(project, "nightly_toolchain")?
+        }
         Err(error) => return Err(error).context("invalid RS_INFRA_NIGHTLY_TOOLCHAIN"),
     };
     if selected.is_empty() || selected.starts_with(['+', '-']) || selected.chars().any(char::is_whitespace) {

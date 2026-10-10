@@ -30,12 +30,16 @@ fn fixture() -> TempDir {
     )
     .expect("fuzz manifest");
     fs::create_dir(root.path().join("bin")).expect("bin");
+    fs::create_dir_all(root.path().join(".infra/ci")).expect("CI directory");
+    fs::write(root.path().join(".infra/ci/cargo-matrix.json"), "{}").expect("matrix marker");
+    fs::write(root.path().join(".infra/ci/platform.toml"), "").expect("platform marker");
+    fs::write(root.path().join(".infra/ci/cross.toml"), "").expect("cross marker");
     let cargo = root.path().join("bin/cargo");
     fs::write(&cargo, r#"#!/bin/sh
 set -eu
 printf '%s\n' "$*" >> "$COMMAND_LOG"
-printf 'RUSTFLAGS=%s\nRUSTDOCFLAGS=%s\n' "${RUSTFLAGS:-}" "${RUSTDOCFLAGS:-}" >> "$COMMAND_LOG.env"
-if [ "$1" = metadata ]; then exec "$REAL_CARGO" "$@"; fi
+printf 'RUSTFLAGS=%s\nRUSTDOCFLAGS=%s\nRUSTUP_TOOLCHAIN=%s\n' "${RUSTFLAGS:-}" "${RUSTDOCFLAGS:-}" "${RUSTUP_TOOLCHAIN:-}" >> "$COMMAND_LOG.env"
+if [ "$1" = metadata ]; then unset RUSTUP_TOOLCHAIN; exec "$REAL_CARGO" "$@"; fi
 case " $* " in
   *" fuzz list "*)
     if [ "${FAIL_LIST:-0}" = 1 ]; then echo 'list failed' >&2; exit 1; fi
@@ -55,10 +59,22 @@ beta
     fi
     ;;
   *" miri test "*) echo 'running 1 test';;
+  *" loom -- --list "*) echo 'sample_loom: test';;
 esac
 "#).expect("Cargo stand-in");
     fs::set_permissions(cargo, fs::Permissions::from_mode(0o755)).expect("executable");
+    let cross = root.path().join("bin/cross");
+    fs::write(&cross, "#!/bin/sh\nset -eu\nprintf 'RUSTUP_TOOLCHAIN=%s\\n' \"${RUSTUP_TOOLCHAIN:-}\" >> \"$COMMAND_LOG.env\"\n").expect("cross stand-in");
+    fs::set_permissions(cross, fs::Permissions::from_mode(0o755)).expect("executable");
+    defaults(root.path(), ".infra/ci", "1.94.0", "nightly", "nightly");
     root
+}
+
+fn defaults(root: &Path, directory: &str, build: &str, clippy: &str, nightly: &str) {
+    let path = root.join(directory).join("defaults.toml");
+    fs::create_dir_all(path.parent().expect("defaults directory")).expect("defaults directory");
+    fs::write(path, format!("build_toolchain = '{build}'\nclippy_toolchain = '{clippy}'\nnightly_toolchain = '{nightly}'\n"))
+        .expect("defaults");
 }
 
 /// Constructs a CLI command with child-only environment isolation.
@@ -109,6 +125,101 @@ fn test_miri_and_sanitizer_select_configured_nightly() {
             );
         }
     }
+}
+
+#[test]
+fn test_nightly_suites_use_project_defaults_and_environment_override() {
+    for suite in ["miri", "address-sanitizer", "fuzz"] {
+        let root = fixture();
+        defaults(root.path(), ".infra/tools", "stable-build", "nightly-clippy", "nightly-project");
+        let result = cli(root.path(), suite).output().expect("suite");
+        assert!(result.status.success(), "{result:?}");
+        let log = fs::read_to_string(root.path().join("commands.log")).expect("commands");
+        assert!(log.contains("+nightly-project "), "{suite}: {log}");
+
+        fs::write(root.path().join("commands.log"), "").expect("clear log");
+        let result = cli(root.path(), suite)
+            .env("RS_INFRA_NIGHTLY_TOOLCHAIN", "nightly-override")
+            .output()
+            .expect("override suite");
+        assert!(result.status.success(), "{result:?}");
+        let log = fs::read_to_string(root.path().join("commands.log")).expect("commands");
+        assert!(log.contains("+nightly-override "), "{suite}: {log}");
+    }
+}
+
+#[test]
+fn test_stable_cargo_suites_use_their_project_toolchain() {
+    for (suite, expected) in [
+        ("build", "stable-build"),
+        ("test", "stable-build"),
+        ("doc", "stable-build"),
+        ("clippy", "nightly-clippy"),
+        ("audit", "stable-build"),
+        ("lock", "stable-build"),
+        ("feature-matrix", "stable-build"),
+        ("platform", "stable-build"),
+        ("cross", "stable-build"),
+        ("package", "stable-build"),
+    ] {
+        let root = fixture();
+        defaults(root.path(), ".infra/tools", "stable-build", "nightly-clippy", "nightly-project");
+        let result = cli(root.path(), suite).output().expect("suite");
+        assert!(result.status.success(), "{suite}: {result:?}");
+        let log = fs::read_to_string(root.path().join("commands.log.env")).expect("environment log");
+        assert!(log.contains(&format!("RUSTUP_TOOLCHAIN={expected}")), "{suite}: {log}");
+    }
+}
+
+#[test]
+fn test_loom_and_metadata_use_build_toolchain() {
+    let root = fixture();
+    defaults(root.path(), ".infra/tools", "stable-build", "nightly-clippy", "nightly-project");
+    fs::create_dir_all(root.path().join("loom-stub/src")).expect("dependency source");
+    fs::write(root.path().join("loom-stub/Cargo.toml"), "[package]\nname='loom'\nversion='0.1.0'\nedition='2024'\n").expect("dependency manifest");
+    fs::write(root.path().join("loom-stub/src/lib.rs"), "").expect("dependency source");
+    let manifest = root.path().join("Cargo.toml");
+    let content = fs::read_to_string(&manifest).expect("manifest");
+    fs::write(manifest, format!("{content}\n[dev-dependencies]\nloom={{path='loom-stub'}}\n")).expect("manifest");
+    let result = cli(root.path(), "loom").output().expect("Loom suite");
+    assert!(result.status.success(), "{result:?}");
+    let log = fs::read_to_string(root.path().join("commands.log.env")).expect("environment log");
+    assert!(log.matches("RUSTUP_TOOLCHAIN=stable-build").count() >= 3, "{log}");
+}
+
+#[test]
+fn test_defaults_fallback_and_invalid_new_file() {
+    let root = fixture();
+    defaults(root.path(), ".infra/ci", "stable-old", "nightly-old-clippy", "nightly-old");
+    let result = cli(root.path(), "build").output().expect("fallback suite");
+    assert!(result.status.success(), "{result:?}");
+    let log = fs::read_to_string(root.path().join("commands.log.env")).expect("environment log");
+    assert!(log.contains("RUSTUP_TOOLCHAIN=stable-old"), "{log}");
+
+    let path = root.path().join(".infra/tools/defaults.toml");
+    fs::create_dir_all(path.parent().expect("directory")).expect("directory");
+    fs::write(&path, "build_toolchain = [invalid]\n").expect("invalid defaults");
+    let result = cli(root.path(), "build").output().expect("invalid suite");
+    assert!(!result.status.success());
+    let error = String::from_utf8_lossy(&result.stderr);
+    assert!(error.contains(".infra/tools/defaults.toml") && error.contains("build_toolchain"), "{error}");
+
+    fs::remove_file(&path).expect("remove invalid fixture config");
+    std::os::unix::fs::symlink("missing.toml", &path).expect("broken defaults link");
+    let result = cli(root.path(), "build").output().expect("broken link suite");
+    assert!(!result.status.success());
+    let error = String::from_utf8_lossy(&result.stderr);
+    assert!(error.contains(".infra/tools/defaults.toml"), "{error}");
+}
+
+#[test]
+fn test_missing_defaults_names_install_path() {
+    let root = fixture();
+    fs::remove_file(root.path().join(".infra/ci/defaults.toml")).expect("remove legacy fixture config");
+    let result = cli(root.path(), "build").output().expect("missing defaults suite");
+    assert!(!result.status.success());
+    let error = String::from_utf8_lossy(&result.stderr);
+    assert!(error.contains(".infra/tools/defaults.toml") && error.contains("update-infra.sh"), "{error}");
 }
 
 #[test]

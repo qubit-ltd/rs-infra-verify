@@ -96,7 +96,13 @@ pub fn run_suite(project: &Path, suite: Suite) -> Result<()> {
         Suite::Cross => (entry.command[0].as_str(), entry.command[1..].to_vec()),
         _ => ("cargo", entry.command.clone()),
     };
-    run_program(project, program, &args)
+    let field = if suite == Suite::Clippy {
+        "clippy_toolchain"
+    } else {
+        "build_toolchain"
+    };
+    let toolchain = crate::defaults::toolchain(project, field)?;
+    run_program(project, program, &args, &toolchain)
 }
 
 /// Runs each configured workspace package under Miri.
@@ -185,14 +191,16 @@ fn output_reports_tests(output: &str) -> bool {
 /// * `project` - Working directory for the child process.
 /// * `program` - Program executable to start.
 /// * `args` - Arguments passed to the program.
+/// * `toolchain` - Rustup toolchain inherited by the child process.
 ///
 /// # Errors
 ///
 /// Returns an error when the process cannot start or exits unsuccessfully.
-fn run_program(project: &Path, program: &str, args: &[String]) -> Result<()> {
+fn run_program(project: &Path, program: &str, args: &[String], toolchain: &str) -> Result<()> {
     let status = Command::new(program)
         .args(args)
         .current_dir(project)
+        .env("RUSTUP_TOOLCHAIN", toolchain)
         .status()
         .with_context(|| format!("failed to start {program} {}", args.join(" ")))?;
     if !status.success() {
@@ -212,10 +220,12 @@ fn run_program(project: &Path, program: &str, args: &[String]) -> Result<()> {
 ///
 /// Returns an error when Cargo cannot start or exits unsuccessfully.
 fn run(project: &Path, args: &[&str]) -> Result<()> {
+    let toolchain = crate::defaults::toolchain(project, "build_toolchain")?;
     run_program(
         project,
         "cargo",
         &args.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>(),
+        &toolchain,
     )
 }
 
@@ -231,9 +241,11 @@ fn run(project: &Path, args: &[&str]) -> Result<()> {
 /// Returns an error when Cargo cannot start or exits unsuccessfully. Failure
 /// output is included in the error message.
 fn run_quiet(project: &Path, args: &[&str]) -> Result<()> {
+    let toolchain = crate::defaults::toolchain(project, "build_toolchain")?;
     let output = Command::new("cargo")
         .args(args)
         .current_dir(project)
+        .env("RUSTUP_TOOLCHAIN", toolchain)
         .stdout(Stdio::null())
         .output()
         .with_context(|| format!("failed to start cargo {}", args.join(" ")))?;

@@ -25,6 +25,7 @@ fn package(root: &Path, name: &str, extra: &str, source: &str) {
 
 /// Invokes the public CLI without network access.
 fn verify(root: &Path, suite: &str) -> Output {
+    defaults(root);
     Command::new(env!("CARGO_BIN_EXE_rs-infra-verify"))
         .args(["--project", root.to_str().expect("path"), "run", "--suite", suite])
         .env("CARGO_NET_OFFLINE", "true")
@@ -34,11 +35,22 @@ fn verify(root: &Path, suite: &str) -> Output {
 
 /// Invokes a lockfile command without network access.
 fn verify_lock(root: &Path, operation: &str) -> Output {
+    defaults(root);
     Command::new(env!("CARGO_BIN_EXE_rs-infra-verify"))
         .args(["--project", root.to_str().expect("path"), "lock", operation])
         .env("CARGO_NET_OFFLINE", "true")
         .output()
         .expect("CLI")
+}
+
+fn defaults(root: &Path) {
+    let directory = root.join(".infra/tools");
+    fs::create_dir_all(&directory).expect("defaults directory");
+    fs::write(
+        directory.join("defaults.toml"),
+        "build_toolchain = '1.94.0'\nclippy_toolchain = 'nightly-2026-06-05'\nnightly_toolchain = 'nightly-2026-06-05'\n",
+    )
+    .expect("defaults");
 }
 
 #[test]

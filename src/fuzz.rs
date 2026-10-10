@@ -44,7 +44,7 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
         println!("fuzz: skipped: RS_INFRA_FUZZ_MODE=disabled");
         return Ok(());
     }
-    let nightly = toolchain()?;
+    let nightly = toolchain(project)?;
     let limits = if mode == FuzzMode::Smoke {
         Some((
             positive_setting("RS_INFRA_FUZZ_SECONDS_PER_TARGET", 10)?,

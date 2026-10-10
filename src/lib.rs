@@ -7,6 +7,7 @@
 // =============================================================================
 //! Cargo project verification primitives.
 
+mod defaults;
 mod fuzz;
 mod fuzz_mode;
 mod loom;
@@ -91,6 +92,8 @@ mod tests {
         .expect("manifest");
         fs::create_dir(project.path().join("src")).expect("source directory");
         fs::write(project.path().join("src/lib.rs"), "").expect("library source");
+        fs::create_dir_all(project.path().join(".infra/tools")).expect("defaults directory");
+        fs::write(project.path().join(".infra/tools/defaults.toml"), "build_toolchain='1.94.0'\nnightly_toolchain='nightly-2026-06-05'\n").expect("defaults");
 
         let plan = plan(project.path(), None).expect("plan");
         let miri = plan
@@ -111,6 +114,8 @@ mod tests {
         .expect("manifest");
         fs::create_dir(project.path().join("src")).expect("source directory");
         fs::write(project.path().join("src/lib.rs"), "").expect("library source");
+        fs::create_dir_all(project.path().join(".infra/tools")).expect("defaults directory");
+        fs::write(project.path().join(".infra/tools/defaults.toml"), "build_toolchain='1.94.0'\nnightly_toolchain='nightly-2026-06-05'\n").expect("defaults");
 
         let plan = plan(project.path(), Some(Suite::Miri)).expect("plan");
         assert!(matches!(plan[0].status, PlanStatus::Ready));

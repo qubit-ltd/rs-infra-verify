@@ -33,6 +33,7 @@ use crate::metadata::workspace_metadata;
 /// Returns contextual metadata, process, or package verification errors.
 /// Cargo writes package archives, build output, and potentially lockfiles.
 pub(crate) fn verify(project: &Path) -> Result<()> {
+    let toolchain = crate::defaults::toolchain(project, "build_toolchain")?;
     let metadata = workspace_metadata(project)?;
     let members = metadata["workspace_members"]
         .as_array()
@@ -54,7 +55,7 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
             }
         }
         let mut command = Command::new("cargo");
-        command.current_dir(project);
+        command.current_dir(project).env("RUSTUP_TOOLCHAIN", &toolchain);
         for (name, path) in patches {
             // JSON string quoting is also valid TOML basic-string quoting here.
             command.args([

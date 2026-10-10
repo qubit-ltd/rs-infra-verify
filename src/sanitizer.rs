@@ -103,7 +103,7 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
         );
         return Ok(());
     };
-    let nightly = toolchain()?;
+    let nightly = toolchain(project)?;
     let rustflags = instrumented_flags(&env::var("RUSTFLAGS").unwrap_or_default());
     let rustdocflags = instrumented_flags(&env::var("RUSTDOCFLAGS").unwrap_or_default());
     for name in selected {

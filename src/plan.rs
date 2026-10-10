@@ -60,7 +60,7 @@ pub fn plan(project: &Path, selected: Option<Suite>) -> Result<Vec<PlanEntry>> {
             if matches!(status, PlanStatus::Ready)
                 && matches!(suite, Suite::Miri | Suite::AddressSanitizer | Suite::Fuzz)
             {
-                command.insert(0, toolchain()?);
+                command.insert(0, toolchain(project)?);
             }
             Ok(PlanEntry { suite, command, status })
         })

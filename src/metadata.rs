@@ -150,8 +150,10 @@ fn parse_miri_test_args(metadata: &Value, package_id: &str) -> Result<Vec<String
 /// Returns a contextual process or JSON error if Cargo metadata cannot load.
 /// This runs a blocking subprocess and may update Cargo metadata caches.
 pub(crate) fn workspace_metadata(project: &Path) -> Result<Value> {
+    let toolchain = crate::defaults::toolchain(project, "build_toolchain")?;
     let output = Command::new("cargo")
         .args(["metadata", "--no-deps", "--format-version", "1"])
+        .env("RUSTUP_TOOLCHAIN", toolchain)
         .current_dir(project)
         .output()
         .context("failed to start cargo metadata")?;

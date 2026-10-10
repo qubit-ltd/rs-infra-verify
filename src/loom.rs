@@ -72,7 +72,7 @@ pub(crate) fn packages(project: &Path) -> Result<Vec<String>> {
 /// Cargo builds release artifacts; both invocations use `RUSTFLAGS=--cfg loom`.
 pub(crate) fn verify(project: &Path) -> Result<()> {
     for name in packages(project)? {
-        let mut discovery = cargo(project, &name);
+        let mut discovery = cargo(project, &name)?;
         let output = discovery
             .args(["loom", "--", "--list"])
             .output()
@@ -91,7 +91,7 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
         }
         print!("{stdout}");
         println!("Running {count} Loom model test(s) for {name}");
-        let status = cargo(project, &name)
+        let status = cargo(project, &name)?
             .args(["--verbose", "loom"])
             .status()
             .with_context(|| format!("failed to run Loom models for {name}"))?;
@@ -113,15 +113,26 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
 /// # Returns
 ///
 /// A release/all-features test command with the legacy Loom configuration flag.
-fn cargo(project: &Path, name: &str) -> Command {
+///
+/// # Errors
+///
+/// Returns an error if the project build toolchain cannot be read.
+fn cargo(project: &Path, name: &str) -> Result<Command> {
     let mut command = Command::new("cargo");
-    command.current_dir(project).env("RUSTFLAGS", "--cfg loom").args([
-        "test",
-        "--locked",
-        "--package",
-        name,
-        "--release",
-        "--all-features",
-    ]);
     command
+        .current_dir(project)
+        .env("RUSTFLAGS", "--cfg loom")
+        .env(
+            "RUSTUP_TOOLCHAIN",
+            crate::defaults::toolchain(project, "build_toolchain")?,
+        )
+        .args([
+            "test",
+            "--locked",
+            "--package",
+            name,
+            "--release",
+            "--all-features",
+        ]);
+    Ok(command)
 }
