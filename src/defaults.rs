@@ -27,32 +27,16 @@ use anyhow::bail;
 /// Returns a path-specific error if no defaults file exists, its TOML is
 /// invalid, or the requested field is not a valid toolchain name.
 pub(crate) fn toolchain(project: &Path, field: &str) -> Result<String> {
-    let current = project.join(".infra/tools/defaults.toml");
-    let legacy = project.join(".infra/ci/defaults.toml");
-    let current_present = match fs::symlink_metadata(&current) {
-        Ok(_) => true,
-        Err(error) if error.kind() == ErrorKind::NotFound => false,
+    let path = project.join(".infra/tools/defaults.toml");
+    match fs::symlink_metadata(&path) {
+        Ok(_) => {}
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            bail!("missing {}; run update-infra.sh", path.display());
+        }
         Err(error) => {
-            return Err(error).with_context(|| format!("cannot inspect {}", current.display()));
+            return Err(error).with_context(|| format!("cannot inspect {}", path.display()));
         }
-    };
-    let path = if current_present {
-        current
-    } else {
-        match fs::symlink_metadata(&legacy) {
-            Ok(_) => legacy,
-            Err(error) if error.kind() == ErrorKind::NotFound => {
-                bail!(
-                    "missing {} (legacy: {}); run update-infra.sh",
-                    current.display(),
-                    legacy.display()
-                );
-            }
-            Err(error) => {
-                return Err(error).with_context(|| format!("cannot inspect {}", legacy.display()));
-            }
-        }
-    };
+    }
     let source =
         fs::read_to_string(&path).with_context(|| format!("cannot read {}", path.display()))?;
     let table: toml::Value = source

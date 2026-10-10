@@ -66,7 +66,7 @@ esac
     let cross = root.path().join("bin/cross");
     fs::write(&cross, "#!/bin/sh\nset -eu\nprintf 'RUSTUP_TOOLCHAIN=%s\\n' \"${RUSTUP_TOOLCHAIN:-}\" >> \"$COMMAND_LOG.env\"\n").expect("cross stand-in");
     fs::set_permissions(cross, fs::Permissions::from_mode(0o755)).expect("executable");
-    defaults(root.path(), ".infra/ci", "1.94.0", "nightly", "nightly");
+    defaults(root.path(), ".infra/tools", "1.94.0", "nightly", "nightly");
     root
 }
 
@@ -188,16 +188,16 @@ fn test_loom_and_metadata_use_build_toolchain() {
 }
 
 #[test]
-fn test_defaults_fallback_and_invalid_new_file() {
+fn test_old_defaults_are_rejected_and_invalid_new_file_reports_its_path() {
     let root = fixture();
-    defaults(root.path(), ".infra/ci", "stable-old", "nightly-old-clippy", "nightly-old");
-    let result = cli(root.path(), "build").output().expect("fallback suite");
-    assert!(result.status.success(), "{result:?}");
-    let log = fs::read_to_string(root.path().join("commands.log.env")).expect("environment log");
-    assert!(log.contains("RUSTUP_TOOLCHAIN=stable-old"), "{log}");
-
     let path = root.path().join(".infra/tools/defaults.toml");
-    fs::create_dir_all(path.parent().expect("directory")).expect("directory");
+    fs::remove_file(&path).expect("remove new fixture config");
+    defaults(root.path(), ".infra/ci", "stable-old", "nightly-old-clippy", "nightly-old");
+    let result = cli(root.path(), "build").output().expect("old-only suite");
+    assert!(!result.status.success(), "{result:?}");
+    let error = String::from_utf8_lossy(&result.stderr);
+    assert!(error.contains(".infra/tools/defaults.toml") && error.contains("update-infra.sh"), "{error}");
+
     fs::write(&path, "build_toolchain = [invalid]\n").expect("invalid defaults");
     let result = cli(root.path(), "build").output().expect("invalid suite");
     assert!(!result.status.success());
@@ -215,7 +215,7 @@ fn test_defaults_fallback_and_invalid_new_file() {
 #[test]
 fn test_missing_defaults_names_install_path() {
     let root = fixture();
-    fs::remove_file(root.path().join(".infra/ci/defaults.toml")).expect("remove legacy fixture config");
+    fs::remove_file(root.path().join(".infra/tools/defaults.toml")).expect("remove new fixture config");
     let result = cli(root.path(), "build").output().expect("missing defaults suite");
     assert!(!result.status.success());
     let error = String::from_utf8_lossy(&result.stderr);
