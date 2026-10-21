@@ -41,10 +41,10 @@ pub(crate) fn toolchain(project: &Path, field: &str) -> Result<String> {
             return Err(error).with_context(|| format!("cannot inspect {}", path.display()));
         }
     }
-    let source = fs::read_to_string(&path).with_context(|| format!("cannot read {}", path.display()))?;
-    let table: toml::Value = source
-        .parse()
-        .with_context(|| format!("invalid TOML in {}", path.display()))?;
+    let source =
+        fs::read_to_string(&path).with_context(|| format!("cannot read {}", path.display()))?;
+    let table: toml::Table =
+        toml::from_str(&source).with_context(|| format!("invalid TOML in {}", path.display()))?;
     let value = table
         .get(field)
         .and_then(toml::Value::as_str)
