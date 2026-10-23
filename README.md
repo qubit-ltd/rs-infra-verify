@@ -38,11 +38,13 @@ not prove that the sibling versions have been published to a registry.
 
 The `readme` suite checks each member's declared README (or `README.md`) and
 `README.zh_CN.md`. In these files, dependency declarations for any workspace
-package must use its exact current major.minor version: package version `1.2.3`
-requires `demo = "1.2"` or `demo = { version = "1.2" }`. Patch versions, ranges,
-and declarations without a version fail with file and line diagnostics. Unrelated
-dependencies are ignored; missing files or no matching declarations are reported
-as skips. Inherited workspace versions and custom README paths are supported.
+package must use a valid Cargo version requirement that matches the package
+version. For example, package version `0.9.1` matches requirements `"0.9"` and
+`"0.9.1"`; Cargo's prerelease and range rules also apply. Invalid or non-matching
+requirements and declarations without a version fail with file and line
+diagnostics. Unrelated dependencies are ignored; missing files or no matching
+declarations are reported as skips. Inherited workspace versions and custom
+README paths are supported.
 
 ```bash
 rs-infra-verify --project /path/to/project run --suite package
