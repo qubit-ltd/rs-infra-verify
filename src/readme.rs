@@ -16,6 +16,8 @@ use anyhow::Result;
 use anyhow::bail;
 use regex::Regex;
 use regex::escape;
+use semver::Version;
+use semver::VersionReq;
 
 use crate::metadata::workspace_metadata;
 
@@ -27,8 +29,8 @@ use crate::metadata::workspace_metadata;
 ///
 /// # Returns
 ///
-/// Success when declarations use exact workspace major.minor versions, or no
-/// README files or matching declarations exist.
+/// Success when declarations use Cargo-compatible requirements for workspace
+/// package versions, or when no README files or matching declarations exist.
 ///
 /// # Errors
 ///
@@ -61,7 +63,6 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
             }
         }
     }
-    let minor = Regex::new(r"^(\d+)\.(\d+)(?:[.\-+]|$)")?;
     let string = Regex::new(r#"^"([^"]+)"\s*$"#)?;
     let inline = Regex::new(r#"\bversion\s*=\s*"([^"]+)""#)?;
     let mut errors = Vec::new();
@@ -72,10 +73,8 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
         for package in &packages {
             let name = package["name"].as_str().context("missing package name")?;
             let version = package["version"].as_str().context("missing package version")?;
-            let parts = minor
-                .captures(version)
-                .context("package version does not start with major.minor")?;
-            let expected = format!("{}.{}", &parts[1], &parts[2]);
+            let package_version = Version::parse(version)
+                .with_context(|| format!("invalid package version for {name}: {version}"))?;
             let declaration = Regex::new(&format!(r"^\s*{}\s*=\s*(?P<value>.+?)\s*(?:#.*)?$", escape(name)))?;
             for (index, line) in content.lines().enumerate() {
                 let Some(found) = declaration.captures(line) else {
@@ -85,14 +84,16 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
                 let value = found["value"].trim();
                 let found_version = string.captures(value).or_else(|| inline.captures(value));
                 match found_version {
-                    Some(found) if found[1] == expected => {}
-                    Some(found) => errors.push(format!(
-                        "{display}:{}: expected \"{expected}\" for {name}, found \"{}\"",
-                        index + 1,
-                        &found[1]
-                    )),
+                    Some(found) => match VersionReq::parse(&found[1]) {
+                        Ok(requirement) if requirement.matches(&package_version) => {}
+                        _ => errors.push(format!(
+                            "{display}:{}: version requirement \"{}\" for {name} does not match package version \"{version}\"",
+                            index + 1,
+                            &found[1]
+                        )),
+                    },
                     None => errors.push(format!(
-                        "{display}:{}: dependency declaration for {name} must include version = \"{expected}\"",
+                        "{display}:{}: dependency declaration for {name} must include a valid Cargo version requirement",
                         index + 1
                     )),
                 }
