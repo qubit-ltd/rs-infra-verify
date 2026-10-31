@@ -137,7 +137,7 @@ fn test_readme_checks_all_workspace_names_and_both_languages() {
     .expect("README");
     fs::write(
         root.path().join("README.zh_CN.md"),
-        "demo = { version = \"1.1\", features = [] }\ndemo = { path = \".\" }\n",
+        "demo = { version = \"2.0\", features = [] }\ndemo = { path = \".\" }\n",
     )
     .expect("Chinese README");
     let result = verify(root.path(), "readme");
@@ -186,15 +186,17 @@ fn test_readme_uses_inherited_versions_custom_paths_and_cross_member_snippets() 
     .expect("inherited version");
     fs::write(
         root.path().join("GUIDE.md"),
-        "first = \"1.2\"\nsecond = { version = \"2.4\" } # inherited\n",
+        "first = \"1.2\"\nsecond = { version = \"2.4.9-beta.1\" } # inherited\n",
     )
     .expect("custom README");
     assert!(verify(root.path(), "readme").status.success());
-    for invalid in ["2.4.9", "^2.4", "2.3", "2.4.9-beta.1"] {
+    for invalid in ["2.4.9", "^2.4", "2.3", "2.4.9-beta.2"] {
         fs::write(root.path().join("GUIDE.md"), format!("second = \"{invalid}\"\n")).expect("incorrect README");
         let result = verify(root.path(), "readme");
         assert!(!result.status.success());
-        assert!(String::from_utf8_lossy(&result.stderr).contains("GUIDE.md:1: expected \"2.4\" for second"));
+        assert!(String::from_utf8_lossy(&result.stderr).contains(&format!(
+            "GUIDE.md:1: version requirement \"{invalid}\" for second does not match package version \"2.4.9-beta.1\""
+        )));
     }
 }
 
