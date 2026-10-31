@@ -73,8 +73,8 @@ pub(crate) fn verify(project: &Path) -> Result<()> {
         for package in &packages {
             let name = package["name"].as_str().context("missing package name")?;
             let version = package["version"].as_str().context("missing package version")?;
-            let package_version = Version::parse(version)
-                .with_context(|| format!("invalid package version for {name}: {version}"))?;
+            let package_version =
+                Version::parse(version).with_context(|| format!("invalid package version for {name}: {version}"))?;
             let declaration = Regex::new(&format!(r"^\s*{}\s*=\s*(?P<value>.+?)\s*(?:#.*)?$", escape(name)))?;
             for (index, line) in content.lines().enumerate() {
                 let Some(found) = declaration.captures(line) else {
